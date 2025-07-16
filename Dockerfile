@@ -2,11 +2,12 @@ FROM node:16-alpine
 
 WORKDIR /usr/src/app
 
-COPY app/package.json .
+COPY public/package.json .
 RUN npm install
 
-COPY app .
+COPY server.js .
+COPY public /usr/src/app/public
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
