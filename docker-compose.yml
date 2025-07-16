@@ -11,6 +11,11 @@ services:
       - ./public:/usr/src/app/public
     networks:
       - webrtc_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   nginx:
     image: nginx:alpine
@@ -26,6 +31,11 @@ services:
       - app
     networks:
       - webrtc_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
 
 networks:
   webrtc_network:
