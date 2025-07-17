@@ -230,6 +230,52 @@
                 font-size: 18px;
             }
         }
+
+        /* Стиль для демонстрации экрана */
+        .screen-share-item {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 90;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen-share-item video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .screen-share-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 91;
+            display: flex;
+            gap: 10px;
+        }
+
+        .screen-share-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .screen-share-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
     </style>
     <!-- Иконки Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -238,6 +284,17 @@
     <!-- Контейнер для видео участников -->
     <div class="video-container" id="videoContainer">
         <!-- Видео будет добавляться динамически -->
+    </div>
+
+    <!-- Контейнер для демонстрации экрана -->
+    <div id="screenShareContainer" style="display: none;">
+        <div class="screen-share-controls">
+            <button class="screen-share-btn" id="stopScreenShareBtn">
+                <i class="material-icons">stop</i>
+                Stop Sharing
+            </button>
+        </div>
+        <video id="screenShareVideo" autoplay playsinline></video>
     </div>
 
     <!-- Форма входа -->
@@ -279,29 +336,33 @@
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
     <script>
-        // Здесь остается ваш JavaScript код из предыдущей версии
-        // Нужно адаптировать его под новый интерфейс
-        
         // Global variables
         let localStream = null;
+        let screenStream = null;
         let currentRoom = null;
         let currentUser = null;
         let isVideoEnabled = true;
         let isAudioEnabled = true;
+        let isScreenSharing = false;
         let videoTrack = null;
         let audioTrack = null;
         let peer = null;
         let peerId = null;
         let connections = {};
+        let calls = {};
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
         const leaveBtn = document.getElementById('leaveBtn');
         const toggleVideoBtn = document.getElementById('toggleVideoBtn');
         const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+        const screenShareBtn = document.getElementById('screenShareBtn');
+        const stopScreenShareBtn = document.getElementById('stopScreenShareBtn');
         const usernameInput = document.getElementById('username');
         const roomNameInput = document.getElementById('roomName');
         const videoContainer = document.getElementById('videoContainer');
+        const screenShareContainer = document.getElementById('screenShareContainer');
+        const screenShareVideo = document.getElementById('screenShareVideo');
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
         
@@ -433,7 +494,9 @@
                         peer.on('call', (call) => {
                             console.log('Incoming call from:', call.peer);
                             
-                            call.answer(localStream);
+                            // Answer with current stream (either camera or screen share)
+                            const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
+                            call.answer(streamToAnswerWith);
                             
                             call.on('stream', (remoteStream) => {
                                 addRemoteVideo(call.peer, remoteStream);
@@ -442,7 +505,12 @@
                             call.on('close', () => {
                                 console.log('Call ended with:', call.peer);
                                 removeRemoteVideo(call.peer);
+                                if (calls[call.peer]) {
+                                    delete calls[call.peer];
+                                }
                             });
+                            
+                            calls[call.peer] = call;
                         });
                         
                     } else {
@@ -486,7 +554,12 @@
                             call.on('close', () => {
                                 console.log('Call ended with:', peerId);
                                 removeRemoteVideo(peerId);
+                                if (calls[peerId]) {
+                                    delete calls[peerId];
+                                }
                             });
+                            
+                            calls[peerId] = call;
                         });
                         
                         conn.on('close', () => {
@@ -552,12 +625,132 @@
             isAudioEnabled = !isAudioEnabled;
             if (audioTrack) {
                 audioTrack.enabled = isAudioEnabled;
-                toggleAudioBtn.innerHTML = isVideoEnabled 
+                toggleAudioBtn.innerHTML = isAudioEnabled 
                     ? '<i class="material-icons">mic</i>' 
                     : '<i class="material-icons">mic_off</i>';
                 toggleAudioBtn.classList.toggle('active', !isAudioEnabled);
             }
         });
+        
+        // Screen share
+        screenShareBtn.addEventListener('click', toggleScreenShare);
+        
+        // Stop screen share
+        stopScreenShareBtn.addEventListener('click', stopScreenShare);
+        
+        // Toggle screen sharing
+        async function toggleScreenShare() {
+            if (isScreenSharing) {
+                await stopScreenShare();
+            } else {
+                await startScreenShare();
+            }
+        }
+        
+        // Start screen sharing
+        async function startScreenShare() {
+            try {
+                // For iOS/Safari, we need to use the experimental API
+                const constraints = {
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: false
+                };
+                
+                // Adjust constraints for different browsers
+                if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+                    // iOS devices
+                    constraints.video = true;
+                } else if (navigator.mediaDevices.getDisplayMedia) {
+                    // Standard getDisplayMedia
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                            frameRate: { ideal: 30 }
+                        },
+                        audio: false
+                    });
+                } else if (navigator.mediaDevices.getUserMedia) {
+                    // Fallback for older browsers
+                    screenStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'screen',
+                                maxWidth: 1920,
+                                maxHeight: 1080,
+                                maxFrameRate: 30
+                            }
+                        }
+                    });
+                } else {
+                    throw new Error('Screen sharing not supported');
+                }
+                
+                // Show screen share preview
+                screenShareVideo.srcObject = screenStream;
+                screenShareContainer.style.display = 'block';
+                
+                // Update UI
+                screenShareBtn.innerHTML = '<i class="material-icons">stop_screen_share</i>';
+                screenShareBtn.classList.add('active');
+                
+                isScreenSharing = true;
+                
+                // Replace video track in all existing calls
+                const screenVideoTrack = screenStream.getVideoTracks()[0];
+                for (const call of Object.values(calls)) {
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track.kind === 'video') {
+                            sender.replaceTrack(screenVideoTrack);
+                        }
+                    });
+                }
+                
+                // Handle when screen sharing is stopped by browser UI
+                screenStream.getVideoTracks()[0].onended = () => {
+                    stopScreenShare();
+                };
+                
+            } catch (error) {
+                console.error('Error starting screen share:', error);
+                showNotification('Error starting screen share: ' + error.message);
+            }
+        }
+        
+        // Stop screen sharing
+        async function stopScreenShare() {
+            if (!isScreenSharing) return;
+            
+            // Hide screen share preview
+            screenShareContainer.style.display = 'none';
+            
+            // Stop screen stream
+            screenStream.getTracks().forEach(track => track.stop());
+            screenStream = null;
+            
+            // Update UI
+            screenShareBtn.innerHTML = '<i class="material-icons">screen_share</i>';
+            screenShareBtn.classList.remove('active');
+            
+            isScreenSharing = false;
+            
+            // Restore camera video track in all existing calls
+            if (localStream) {
+                const cameraVideoTrack = localStream.getVideoTracks()[0];
+                for (const call of Object.values(calls)) {
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track.kind === 'video') {
+                            sender.replaceTrack(cameraVideoTrack);
+                        }
+                    });
+                }
+            }
+        }
         
         // Leave room
         leaveBtn.addEventListener('click', async () => {
@@ -568,11 +761,22 @@
         
         // Leave the room
         async function leaveRoom() {
+            // Stop screen sharing if active
+            if (isScreenSharing) {
+                await stopScreenShare();
+            }
+            
             // Close all connections
             for (const conn of Object.values(connections)) {
                 conn.close();
             }
             connections = {};
+            
+            // Close all calls
+            for (const call of Object.values(calls)) {
+                call.close();
+            }
+            calls = {};
             
             // Stop local stream
             if (localStream) {
