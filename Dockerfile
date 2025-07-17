@@ -1,13 +1,11 @@
-FROM node:16-alpine
+# Dockerfile
+FROM python:3.9-slim
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY public/package.json .
-RUN npm install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.js .
-COPY public /usr/src/app/public
+COPY . .
 
-EXPOSE 3000
-
-CMD ["node", "server.js"]
+CMD ["python", "app.py"]
