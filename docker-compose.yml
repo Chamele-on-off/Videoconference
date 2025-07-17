@@ -1,20 +1,13 @@
+# docker-compose.yml
 version: '3.8'
 
 services:
-  webrtc-server:
-    image: python:3.9-slim
-    container_name: webrtc-python
-    restart: unless-stopped
-    volumes:
-      - ./server.py:/app/server.py
-      - ./ssl:/app/ssl  # Папка с SSL-сертификатами
-      - ./static:/app/static  # Статические файлы (HTML/JS)
+  web:
+    build: .
     ports:
-      - "8765:8765"  # WebSocket-порт
-      - "8000:8000"  # HTTP-порт (если нужно)
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/uploads
     environment:
-      - DOMAIN=localhost
-    working_dir: /app
-    command: >
-      sh -c "python -m pip install websockets aiohttp &&
-             python server.py"
+      - FLASK_ENV=production
+    restart: unless-stopped
