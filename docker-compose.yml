@@ -5,17 +5,13 @@ services:
     build: .
     container_name: webrtc_app
     restart: unless-stopped
-    env_file: .env
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
     volumes:
-      - ./server.js:/usr/src/app/server.js
       - ./public:/usr/src/app/public
-    networks:
-      - webrtc_network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
+    expose:
+      - "3000"
 
   nginx:
     image: nginx:alpine
@@ -29,14 +25,3 @@ services:
       - ./nginx/certs:/etc/nginx/certs
     depends_on:
       - app
-    networks:
-      - webrtc_network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.3'
-          memory: 256M
-
-networks:
-  webrtc_network:
-    driver: bridge
