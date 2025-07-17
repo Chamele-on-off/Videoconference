@@ -3,167 +3,285 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Conference (WebRTC)</title>
+    <title>Modern Video Conference</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        .video-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .video-box {
-            flex: 1;
-            min-width: 300px;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-        }
-        .video-box video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .video-label {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 10px;
-            border-radius: 4px;
-        }
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 10px 20px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background: #45a049;
-        }
-        button.danger {
-            background: #f44336;
-        }
-        button.danger:hover {
-            background: #d32f2f;
-        }
-        button.secondary {
-            background: #2196F3;
-        }
-        button.secondary:hover {
-            background: #0b7dda;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 0;
             box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
-        #localVideo {
-            width: 200px;
-            height: 150px;
+
+        body {
+            background: #0f0f12;
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Основной контейнер видео */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
             background: #000;
-            border-radius: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* Видео участников */
+        .video-item {
+            position: relative;
+            background: #1a1a1f;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .video-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+        }
+
+        /* Информация о участнике */
+        .participant-info {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .participant-status {
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+        }
+
+        /* Панель управления */
+        .control-panel {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(30, 30, 40, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             z-index: 100;
         }
-        #waitingMessage {
-            text-align: center;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin: 20px 0;
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 20px;
         }
-        .participants {
-            margin-top: 20px;
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .control-btn.active {
+            background: #0095ff;
+        }
+
+        .control-btn.danger {
+            background: #ff3b30;
+        }
+
+        .control-btn.danger:hover {
+            background: #ff5a52;
+        }
+
+        .control-btn i {
+            pointer-events: none;
+        }
+
+        /* Форма входа */
+        .join-form {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 30, 40, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .join-form h2 {
+            margin-bottom: 30px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .form-group input {
+            width: 100%;
             padding: 15px;
-            background: #f8f9fa;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #0095ff;
+            background: rgba(0, 149, 255, 0.1);
+        }
+
+        .join-btn {
+            width: 100%;
+            padding: 15px;
+            background: #0095ff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .join-btn:hover {
+            background: #007acc;
+            transform: translateY(-2px);
+        }
+
+        /* Уведомления */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 149, 255, 0.9);
+            color: white;
+            padding: 12px 24px;
             border-radius: 8px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { top: -50px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .control-panel {
+                bottom: 15px;
+                padding: 10px 15px;
+            }
+            
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
         }
     </style>
+    <!-- Иконки Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <h1>Video Conference (WebRTC)</h1>
-        
+    <!-- Контейнер для видео участников -->
+    <div class="video-container" id="videoContainer">
+        <!-- Видео будет добавляться динамически -->
+    </div>
+
+    <!-- Форма входа -->
+    <div class="join-form" id="joinForm">
+        <h2>Join Video Conference</h2>
         <div class="form-group">
             <label for="username">Your Name</label>
             <input type="text" id="username" placeholder="Enter your name">
         </div>
-        
         <div class="form-group">
-            <label for="roomName">Room Name</label>
-            <input type="text" id="roomName" placeholder="Enter room name">
+            <label for="roomName">Room ID</label>
+            <input type="text" id="roomName" placeholder="Enter room ID">
         </div>
-        
-        <div class="controls">
-            <button id="joinBtn">Join Room</button>
-            <button id="leaveBtn" class="danger" disabled>Leave Room</button>
-            <button id="toggleVideoBtn" class="secondary" disabled>Toggle Video</button>
-            <button id="toggleAudioBtn" class="secondary" disabled>Toggle Audio</button>
-        </div>
-        
-        <div id="conferenceArea" style="display: none;">
-            <div class="video-container" id="remoteVideosContainer">
-                <!-- Remote videos will be added here dynamically -->
-            </div>
-            
-            <div id="waitingMessage">
-                <p>Waiting for other participants to join...</p>
-            </div>
-            
-            <div class="participants">
-                <h3>Participants:</h3>
-                <ul id="participantsList"></ul>
-            </div>
-        </div>
-        
-        <video id="localVideo" autoplay muted></video>
+        <button class="join-btn" id="joinBtn">
+            Join Room
+        </button>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="control-panel" id="controlPanel" style="display: none;">
+        <button class="control-btn" id="toggleVideoBtn" title="Toggle Video">
+            <i class="material-icons">videocam</i>
+        </button>
+        <button class="control-btn" id="toggleAudioBtn" title="Toggle Audio">
+            <i class="material-icons">mic</i>
+        </button>
+        <button class="control-btn" id="screenShareBtn" title="Share Screen">
+            <i class="material-icons">screen_share</i>
+        </button>
+        <button class="control-btn" id="participantsBtn" title="Participants">
+            <i class="material-icons">people</i>
+        </button>
+        <button class="control-btn danger" id="leaveBtn" title="Leave Call">
+            <i class="material-icons">call_end</i>
+        </button>
     </div>
 
     <!-- Подключаем PeerJS библиотеку -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
     <script>
+        // Здесь остается ваш JavaScript код из предыдущей версии
+        // Нужно адаптировать его под новый интерфейс
+        
         // Global variables
         let localStream = null;
         let currentRoom = null;
@@ -183,11 +301,9 @@
         const toggleAudioBtn = document.getElementById('toggleAudioBtn');
         const usernameInput = document.getElementById('username');
         const roomNameInput = document.getElementById('roomName');
-        const localVideo = document.getElementById('localVideo');
-        const remoteVideosContainer = document.getElementById('remoteVideosContainer');
-        const waitingMessage = document.getElementById('waitingMessage');
-        const participantsList = document.getElementById('participantsList');
-        const conferenceArea = document.getElementById('conferenceArea');
+        const videoContainer = document.getElementById('videoContainer');
+        const joinForm = document.getElementById('joinForm');
+        const controlPanel = document.getElementById('controlPanel');
         
         // Join room
         joinBtn.addEventListener('click', async () => {
@@ -195,7 +311,7 @@
             const roomName = roomNameInput.value.trim();
             
             if (!username || !roomName) {
-                alert('Please enter your name and room name');
+                showNotification('Please enter your name and room name');
                 return;
             }
             
@@ -206,9 +322,9 @@
                 // Get user media
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 15, max: 20 }
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
                     },
                     audio: {
                         sampleRate: 16000,
@@ -218,29 +334,22 @@
                     }
                 });
                 
-                // Display local video
-                localVideo.srcObject = localStream;
-                videoTrack = localStream.getVideoTracks()[0];
-                audioTrack = localStream.getAudioTracks()[0];
+                // Add local video
+                addLocalVideo(localStream);
                 
                 // Initialize PeerJS
                 await initializePeerJS(username);
                 
                 // Update UI
-                joinBtn.disabled = true;
-                leaveBtn.disabled = false;
-                toggleVideoBtn.disabled = false;
-                toggleAudioBtn.disabled = false;
-                usernameInput.disabled = true;
-                roomNameInput.disabled = true;
-                conferenceArea.style.display = 'block';
+                joinForm.style.display = 'none';
+                controlPanel.style.display = 'flex';
                 
                 // Get list of other participants and connect to them
                 await connectToOtherParticipants();
                 
             } catch (error) {
                 console.error('Error joining room:', error);
-                alert('Error joining room: ' + error.message);
+                showNotification('Error joining room: ' + error.message);
                 if (localStream) {
                     localStream.getTracks().forEach(track => track.stop());
                     localStream = null;
@@ -252,10 +361,37 @@
             }
         });
         
+        // Add local video
+        function addLocalVideo(stream) {
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item local-video';
+            videoItem.id = 'localVideoItem';
+            
+            const video = document.createElement('video');
+            video.id = 'localVideo';
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.srcObject = stream;
+            
+            const participantInfo = document.createElement('div');
+            participantInfo.className = 'participant-info';
+            participantInfo.innerHTML = `
+                <div class="participant-status"></div>
+                <span>${currentUser} (You)</span>
+            `;
+            
+            videoItem.appendChild(video);
+            videoItem.appendChild(participantInfo);
+            videoContainer.appendChild(videoItem);
+            
+            videoTrack = stream.getVideoTracks()[0];
+            audioTrack = stream.getAudioTracks()[0];
+        }
+        
         // Initialize PeerJS connection
         async function initializePeerJS(username) {
             return new Promise((resolve, reject) => {
-                // Get a PeerJS ID from our server
                 fetch('/api/get_peer_id', {
                     method: 'POST',
                     headers: {
@@ -266,7 +402,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Create PeerJS instance
                         peer = new Peer(data.peer_id);
                         
                         peer.on('open', (id) => {
@@ -280,32 +415,26 @@
                             reject(err);
                         });
                         
-                        // Handle incoming connections
                         peer.on('connection', (conn) => {
                             console.log('Incoming connection from:', conn.peer);
                             
                             conn.on('open', () => {
                                 console.log('Connection established with:', conn.peer);
                                 connections[conn.peer] = conn;
-                                updateParticipantsList();
                             });
                             
                             conn.on('close', () => {
                                 console.log('Connection closed with:', conn.peer);
-                                removeParticipant(conn.peer);
+                                removeRemoteVideo(conn.peer);
                                 delete connections[conn.peer];
-                                updateParticipantsList();
                             });
                         });
                         
-                        // Handle incoming calls
                         peer.on('call', (call) => {
                             console.log('Incoming call from:', call.peer);
                             
-                            // Answer the call with our local stream
                             call.answer(localStream);
                             
-                            // Handle the stream from the caller
                             call.on('stream', (remoteStream) => {
                                 addRemoteVideo(call.peer, remoteStream);
                             });
@@ -324,7 +453,7 @@
             });
         }
         
-        // Connect to other participants in the room
+        // Connect to other participants
         async function connectToOtherParticipants() {
             try {
                 const response = await fetch('/api/get_peer_ids', {
@@ -341,17 +470,13 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Connect to each peer and initiate call
                     for (const [user, peerId] of Object.entries(data.peers)) {
-                        // Create data connection
                         const conn = peer.connect(peerId);
                         
                         conn.on('open', () => {
                             console.log('Connected to peer:', peerId);
                             connections[peerId] = conn;
-                            updateParticipantsList();
                             
-                            // Initiate call after connection is established
                             const call = peer.call(peerId, localStream);
                             
                             call.on('stream', (remoteStream) => {
@@ -366,14 +491,9 @@
                         
                         conn.on('close', () => {
                             console.log('Connection closed with:', peerId);
-                            removeParticipant(peerId);
+                            removeRemoteVideo(peerId);
                             delete connections[peerId];
-                            updateParticipantsList();
                         });
-                    }
-                    
-                    if (Object.keys(data.peers).length === 0) {
-                        waitingMessage.style.display = 'block';
                     }
                 }
             } catch (error) {
@@ -381,16 +501,13 @@
             }
         }
         
-        // Add remote video element
+        // Add remote video
         function addRemoteVideo(peerId, stream) {
-            // Check if video already exists
             if (document.getElementById(`remoteVideo-${peerId}`)) return;
             
-            waitingMessage.style.display = 'none';
-            
-            const videoBox = document.createElement('div');
-            videoBox.className = 'video-box';
-            videoBox.id = `videoBox-${peerId}`;
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
+            videoItem.id = `videoItem-${peerId}`;
             
             const video = document.createElement('video');
             video.id = `remoteVideo-${peerId}`;
@@ -398,85 +515,35 @@
             video.playsInline = true;
             video.srcObject = stream;
             
-            const label = document.createElement('div');
-            label.className = 'video-label';
-            label.id = `remoteVideoLabel-${peerId}`;
-            label.textContent = getUsernameFromPeerId(peerId) || peerId;
+            const participantInfo = document.createElement('div');
+            participantInfo.className = 'participant-info';
+            participantInfo.innerHTML = `
+                <div class="participant-status"></div>
+                <span>${peerId}</span>
+            `;
             
-            videoBox.appendChild(video);
-            videoBox.appendChild(label);
-            remoteVideosContainer.appendChild(videoBox);
+            videoItem.appendChild(video);
+            videoItem.appendChild(participantInfo);
+            videoContainer.appendChild(videoItem);
         }
         
-        // Remove remote video element
+        // Remove remote video
         function removeRemoteVideo(peerId) {
-            const videoBox = document.getElementById(`videoBox-${peerId}`);
-            if (videoBox) {
-                videoBox.remove();
-            }
-            
-            // Show waiting message if no more participants
-            if (remoteVideosContainer.children.length === 0) {
-                waitingMessage.style.display = 'block';
+            const videoItem = document.getElementById(`videoItem-${peerId}`);
+            if (videoItem) {
+                videoItem.remove();
             }
         }
-        
-        // Get username from peerId (simplified)
-        function getUsernameFromPeerId(peerId) {
-            // In a real app, you would map peerIds to usernames
-            // For simplicity, we'll just return the peerId
-            return peerId;
-        }
-        
-        // Update participants list
-        function updateParticipantsList() {
-            participantsList.innerHTML = '';
-            
-            // Add current user
-            const currentUserLi = document.createElement('li');
-            currentUserLi.textContent = `${currentUser} (You)`;
-            participantsList.appendChild(currentUserLi);
-            
-            // Add other participants
-            for (const peerId of Object.keys(connections)) {
-                const li = document.createElement('li');
-                li.textContent = getUsernameFromPeerId(peerId) || peerId;
-                participantsList.appendChild(li);
-            }
-        }
-        
-        // Remove participant from UI
-        function removeParticipant(peerId) {
-            const participantItems = participantsList.getElementsByTagName('li');
-            for (let i = 0; i < participantItems.length; i++) {
-                if (participantItems[i].textContent === (getUsernameFromPeerId(peerId) || peerId)) {
-                    participantItems[i].remove();
-                    break;
-                }
-            }
-        }
-        
-        // Leave room
-        leaveBtn.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to leave the room?')) {
-                await leaveRoom();
-            }
-        });
         
         // Toggle video
         toggleVideoBtn.addEventListener('click', () => {
             isVideoEnabled = !isVideoEnabled;
             if (videoTrack) {
                 videoTrack.enabled = isVideoEnabled;
-            }
-            toggleVideoBtn.textContent = isVideoEnabled ? 'Toggle Video' : 'Enable Video';
-            
-            // Notify other participants about the change
-            for (const conn of Object.values(connections)) {
-                conn.send({
-                    type: 'video_toggle',
-                    enabled: isVideoEnabled
-                });
+                toggleVideoBtn.innerHTML = isVideoEnabled 
+                    ? '<i class="material-icons">videocam</i>' 
+                    : '<i class="material-icons">videocam_off</i>';
+                toggleVideoBtn.classList.toggle('active', !isVideoEnabled);
             }
         });
         
@@ -485,15 +552,17 @@
             isAudioEnabled = !isAudioEnabled;
             if (audioTrack) {
                 audioTrack.enabled = isAudioEnabled;
+                toggleAudioBtn.innerHTML = isVideoEnabled 
+                    ? '<i class="material-icons">mic</i>' 
+                    : '<i class="material-icons">mic_off</i>';
+                toggleAudioBtn.classList.toggle('active', !isAudioEnabled);
             }
-            toggleAudioBtn.textContent = isAudioEnabled ? 'Toggle Audio' : 'Enable Audio';
-            
-            // Notify other participants about the change
-            for (const conn of Object.values(connections)) {
-                conn.send({
-                    type: 'audio_toggle',
-                    enabled: isAudioEnabled
-                });
+        });
+        
+        // Leave room
+        leaveBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to leave the room?')) {
+                await leaveRoom();
             }
         });
         
@@ -535,21 +604,29 @@
             }
             
             // Reset UI
-            joinBtn.disabled = false;
-            leaveBtn.disabled = true;
-            toggleVideoBtn.disabled = true;
-            toggleAudioBtn.disabled = true;
-            usernameInput.disabled = false;
-            roomNameInput.disabled = false;
-            conferenceArea.style.display = 'none';
-            localVideo.srcObject = null;
-            remoteVideosContainer.innerHTML = '';
-            participantsList.innerHTML = '';
-            waitingMessage.style.display = 'block';
+            joinForm.style.display = 'block';
+            controlPanel.style.display = 'none';
+            videoContainer.innerHTML = '';
             
             currentRoom = null;
             currentUser = null;
             peerId = null;
+        }
+        
+        // Show notification
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `
+                <i class="material-icons">info</i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
         }
         
         // Handle page unload
