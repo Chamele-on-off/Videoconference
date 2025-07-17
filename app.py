@@ -25,8 +25,8 @@ audio_timestamps = defaultdict(dict)
 data_lock = Lock()
 
 # Ограничения
-MAX_FRAMES_PER_USER = 3
-MAX_FRAME_AGE = 1.0
+MAX_FRAMES_PER_USER = 2
+MAX_FRAME_AGE = 0.3
 MAX_AUDIO_PER_USER = 10
 MAX_AUDIO_AGE = 0.5
 
