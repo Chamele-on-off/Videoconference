@@ -351,6 +351,11 @@
         let connections = {};
         let calls = {};
         
+        // Parameters from parent window
+        let roomNameFromParent = null;
+        let userNameFromParent = null;
+        let autostartFromParent = false;
+        
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
         const leaveBtn = document.getElementById('leaveBtn');
@@ -365,6 +370,47 @@
         const screenShareVideo = document.getElementById('screenShareVideo');
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
+        
+        // Listen for messages from parent window
+        window.addEventListener('message', function(event) {
+            // Verify the origin of the message for security
+            if (event.origin !== window.location.origin) return;
+            
+            const data = event.data;
+            
+            if (data.type === 'initConference') {
+                roomNameFromParent = data.room;
+                userNameFromParent = data.name;
+                autostartFromParent = data.autostart;
+                
+                if (autostartFromParent) {
+                    usernameInput.value = userNameFromParent;
+                    roomNameInput.value = roomNameFromParent;
+                    joinBtn.click();
+                }
+            }
+            else if (data.type === 'toggleMic') {
+                if (audioTrack) {
+                    audioTrack.enabled = data.state;
+                    toggleAudioBtn.innerHTML = data.state 
+                        ? '<i class="material-icons">mic</i>' 
+                        : '<i class="material-icons">mic_off</i>';
+                    toggleAudioBtn.classList.toggle('active', !data.state);
+                }
+            }
+            else if (data.type === 'toggleCamera') {
+                if (videoTrack) {
+                    videoTrack.enabled = data.state;
+                    toggleVideoBtn.innerHTML = data.state 
+                        ? '<i class="material-icons">videocam</i>' 
+                        : '<i class="material-icons">videocam_off</i>';
+                    toggleVideoBtn.classList.toggle('active', !data.state);
+                }
+            }
+            else if (data.type === 'endCall') {
+                leaveRoom();
+            }
+        });
         
         // Join room
         joinBtn.addEventListener('click', async () => {
