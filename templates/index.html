@@ -351,11 +351,6 @@
         let connections = {};
         let calls = {};
         
-        // Parameters from parent window
-        let roomNameFromParent = null;
-        let userNameFromParent = null;
-        let autostartFromParent = false;
-        
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
         const leaveBtn = document.getElementById('leaveBtn');
@@ -371,73 +366,52 @@
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
         
-        // Listen for messages from parent window
+        // Извлекаем параметры из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        const userParam = urlParams.get('user');
+        const nameParam = urlParams.get('name');
+        const autostartParam = urlParams.get('autostart');
+        
+        // Если есть параметры в URL, заполняем форму
+        if (roomParam && userParam && nameParam) {
+            usernameInput.value = nameParam;
+            roomNameInput.value = roomParam;
+            
+            // Если autostart=1, автоматически присоединяемся
+            if (autostartParam === '1') {
+                joinBtn.click();
+            }
+        }
+        
+        // Слушаем сообщения от родительского окна
         window.addEventListener('message', function(event) {
-            // Verify the origin of the message for security
+            // Проверяем источник сообщения
             if (event.origin !== window.location.origin) return;
             
             const data = event.data;
             
-            if (data.type === 'initConference') {
-                roomNameFromParent = data.room;
-                userNameFromParent = data.name;
-                autostartFromParent = data.autostart;
+            if (data.type === 'roomUpdate') {
+                // Обновляем параметры комнаты
+                currentRoom = data.room;
+                currentUser = data.user;
                 
-                if (autostartFromParent) {
-                    usernameInput.value = userNameFromParent;
-                    roomNameInput.value = roomNameFromParent;
-                    joinBtn.click();
-                    
-                    // Notify parent that conference has started
-                    window.parent.postMessage({
-                        type: 'conferenceStarted',
-                        room: roomNameFromParent,
-                        user: userNameFromParent
-                    }, window.location.origin);
-                }
-            }
-            else if (data.type === 'toggleMic') {
-                if (audioTrack) {
-                    audioTrack.enabled = data.state;
-                    toggleAudioBtn.innerHTML = data.state 
-                        ? '<i class="material-icons">mic</i>' 
-                        : '<i class="material-icons">mic_off</i>';
-                    toggleAudioBtn.classList.toggle('active', !data.state);
-                }
-            }
-            else if (data.type === 'toggleCamera') {
-                if (videoTrack) {
-                    videoTrack.enabled = data.state;
-                    toggleVideoBtn.innerHTML = data.state 
-                        ? '<i class="material-icons">videocam</i>' 
-                        : '<i class="material-icons">videocam_off</i>';
-                    toggleVideoBtn.classList.toggle('active', !data.state);
-                }
-            }
-            else if (data.type === 'endCall') {
-                leaveRoom();
-            }
-            else if (data.type === 'roomUpdate') {
-                // Update room name from parent (teacher's username)
+                // Обновляем URL без перезагрузки страницы
+                const newUrl = `${window.location.pathname}?room=${data.room}&user=${data.user}&name=${data.name}&autostart=1`;
+                window.history.replaceState(null, null, newUrl);
+                
+                // Обновляем поля формы
+                usernameInput.value = data.name;
                 roomNameInput.value = data.room;
-                if (currentRoom !== data.room) {
-                    currentRoom = data.room;
-                    // Reconnect with new room name
-                    if (currentUser) {
-                        leaveRoom().then(() => {
-                            usernameInput.value = currentUser;
-                            roomNameInput.value = currentRoom;
-                            joinBtn.click();
-                        });
-                    }
+                
+                // Если уже подключены, переподключаемся
+                if (peer) {
+                    leaveRoom().then(() => {
+                        joinBtn.click();
+                    });
                 }
             }
         });
-        
-        // Request initialization data from parent
-        window.parent.postMessage({ 
-            type: 'requestInitData' 
-        }, window.location.origin);
         
         // Join room
         joinBtn.addEventListener('click', async () => {
@@ -472,7 +446,7 @@
                 addLocalVideo(localStream);
                 
                 // Initialize PeerJS
-                await initializePeerJS(username, roomName);
+                await initializePeerJS(username);
                 
                 // Update UI
                 joinForm.style.display = 'none';
@@ -480,13 +454,6 @@
                 
                 // Get list of other participants and connect to them
                 await connectToOtherParticipants();
-                
-                // Notify parent that conference has started
-                window.parent.postMessage({
-                    type: 'conferenceStarted',
-                    room: roomName,
-                    user: username
-                }, window.location.origin);
                 
             } catch (error) {
                 console.error('Error joining room:', error);
@@ -531,17 +498,14 @@
         }
         
         // Initialize PeerJS connection
-        async function initializePeerJS(username, roomName) {
+        async function initializePeerJS(username) {
             return new Promise((resolve, reject) => {
                 fetch('/api/get_peer_id', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ 
-                        user_id: username,
-                        room_name: roomName 
-                    })
+                    body: JSON.stringify({ user_id: username })
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -700,12 +664,6 @@
                     ? '<i class="material-icons">videocam</i>' 
                     : '<i class="material-icons">videocam_off</i>';
                 toggleVideoBtn.classList.toggle('active', !isVideoEnabled);
-                
-                // Notify parent about video state change
-                window.parent.postMessage({
-                    type: 'videoStateChanged',
-                    state: isVideoEnabled
-                }, window.location.origin);
             }
         });
         
@@ -718,12 +676,6 @@
                     ? '<i class="material-icons">mic</i>' 
                     : '<i class="material-icons">mic_off</i>';
                 toggleAudioBtn.classList.toggle('active', !isAudioEnabled);
-                
-                // Notify parent about audio state change
-                window.parent.postMessage({
-                    type: 'audioStateChanged',
-                    state: isAudioEnabled
-                }, window.location.origin);
             }
         });
         
@@ -906,13 +858,6 @@
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
             videoContainer.innerHTML = '';
-            
-            // Notify parent that conference has ended
-            window.parent.postMessage({
-                type: 'conferenceEnded',
-                room: currentRoom,
-                user: currentUser
-            }, window.location.origin);
             
             currentRoom = null;
             currentUser = null;
