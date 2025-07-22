@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, jsonify
 import uuid
+from collections import defaultdict
 
 app = Flask(__name__)
 
-# Хранилище для пар ID пользователей и их PeerJS ID
-peer_mapping = {}
+# Хранилище для комнат: {room_name: {user_id: peer_id}}
+rooms = defaultdict(dict)
 
 @app.after_request
 def after_request(response):
@@ -20,12 +21,14 @@ def index():
 @app.route('/api/get_peer_id', methods=['POST'])
 def get_peer_id():
     user_id = request.json.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'User ID is required'}), 400
+    room_name = request.json.get('room_name')
+    
+    if not user_id or not room_name:
+        return jsonify({'error': 'User ID and room name are required'}), 400
     
     # Генерируем уникальный PeerJS ID
     peer_id = str(uuid.uuid4())
-    peer_mapping[user_id] = peer_id
+    rooms[room_name][user_id] = peer_id
     
     return jsonify({
         'success': True,
@@ -36,15 +39,27 @@ def get_peer_id():
 def get_peer_ids():
     room_name = request.json.get('room_name')
     current_user = request.json.get('current_user')
+    action = request.json.get('action')
     
     if not room_name or not current_user:
         return jsonify({'error': 'Room name and current user are required'}), 400
     
-    # В реальном приложении здесь должна быть логика комнат
-    # Для простоты возвращаем всех, кроме текущего пользователя
+    # Обработка выхода пользователя
+    if action == 'leave':
+        if room_name in rooms and current_user in rooms[room_name]:
+            del rooms[room_name][current_user]
+            # Если комната пуста, удаляем ее
+            if not rooms[room_name]:
+                del rooms[room_name]
+        return jsonify({'success': True})
+    
+    # Получаем участников комнаты, кроме текущего пользователя
+    if room_name not in rooms:
+        return jsonify({'success': True, 'peers': {}})
+    
     other_peers = {
         user: peer_id 
-        for user, peer_id in peer_mapping.items() 
+        for user, peer_id in rooms[room_name].items() 
         if user != current_user
     }
     
