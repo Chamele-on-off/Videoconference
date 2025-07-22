@@ -387,6 +387,13 @@
                     usernameInput.value = userNameFromParent;
                     roomNameInput.value = roomNameFromParent;
                     joinBtn.click();
+                    
+                    // Notify parent that conference has started
+                    window.parent.postMessage({
+                        type: 'conferenceStarted',
+                        room: roomNameFromParent,
+                        user: userNameFromParent
+                    }, window.location.origin);
                 }
             }
             else if (data.type === 'toggleMic') {
@@ -410,7 +417,27 @@
             else if (data.type === 'endCall') {
                 leaveRoom();
             }
+            else if (data.type === 'roomUpdate') {
+                // Update room name from parent (teacher's username)
+                roomNameInput.value = data.room;
+                if (currentRoom !== data.room) {
+                    currentRoom = data.room;
+                    // Reconnect with new room name
+                    if (currentUser) {
+                        leaveRoom().then(() => {
+                            usernameInput.value = currentUser;
+                            roomNameInput.value = currentRoom;
+                            joinBtn.click();
+                        });
+                    }
+                }
+            }
         });
+        
+        // Request initialization data from parent
+        window.parent.postMessage({ 
+            type: 'requestInitData' 
+        }, window.location.origin);
         
         // Join room
         joinBtn.addEventListener('click', async () => {
@@ -453,6 +480,13 @@
                 
                 // Get list of other participants and connect to them
                 await connectToOtherParticipants();
+                
+                // Notify parent that conference has started
+                window.parent.postMessage({
+                    type: 'conferenceStarted',
+                    room: roomName,
+                    user: username
+                }, window.location.origin);
                 
             } catch (error) {
                 console.error('Error joining room:', error);
@@ -666,6 +700,12 @@
                     ? '<i class="material-icons">videocam</i>' 
                     : '<i class="material-icons">videocam_off</i>';
                 toggleVideoBtn.classList.toggle('active', !isVideoEnabled);
+                
+                // Notify parent about video state change
+                window.parent.postMessage({
+                    type: 'videoStateChanged',
+                    state: isVideoEnabled
+                }, window.location.origin);
             }
         });
         
@@ -678,6 +718,12 @@
                     ? '<i class="material-icons">mic</i>' 
                     : '<i class="material-icons">mic_off</i>';
                 toggleAudioBtn.classList.toggle('active', !isAudioEnabled);
+                
+                // Notify parent about audio state change
+                window.parent.postMessage({
+                    type: 'audioStateChanged',
+                    state: isAudioEnabled
+                }, window.location.origin);
             }
         });
         
@@ -860,6 +906,13 @@
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
             videoContainer.innerHTML = '';
+            
+            // Notify parent that conference has ended
+            window.parent.postMessage({
+                type: 'conferenceEnded',
+                room: currentRoom,
+                user: currentUser
+            }, window.location.origin);
             
             currentRoom = null;
             currentUser = null;
