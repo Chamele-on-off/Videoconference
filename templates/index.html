@@ -276,6 +276,36 @@
         .screen-share-btn:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+
+        /* Стиль для кнопки старта конференции */
+        .start-conference-btn {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            background: #0095ff;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .start-conference-btn:hover {
+            background: #007acc;
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .start-conference-btn i {
+            font-size: 20px;
+        }
     </style>
     <!-- Иконки Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -312,6 +342,12 @@
             Join Room
         </button>
     </div>
+
+    <!-- Кнопка старта конференции (видна только при получении приглашения) -->
+    <button class="start-conference-btn" id="startConferenceBtn" style="display: none;">
+        <i class="material-icons">video_call</i>
+        Start Conference
+    </button>
 
     <!-- Панель управления -->
     <div class="control-panel" id="controlPanel" style="display: none;">
@@ -350,6 +386,7 @@
         let peerId = null;
         let connections = {};
         let calls = {};
+        let inviteTimeout = null;
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -365,6 +402,7 @@
         const screenShareVideo = document.getElementById('screenShareVideo');
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
+        const startConferenceBtn = document.getElementById('startConferenceBtn');
         
         // Извлекаем параметры из URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -378,12 +416,39 @@
             usernameInput.value = nameParam;
             roomNameInput.value = roomParam;
             
-            // Если autostart=1, автоматически присоединяемся
+            // Показываем кнопку старта вместо автоматического подключения
             if (autostartParam === '1') {
-                setTimeout(() => {
-                    joinBtn.click();
-                }, 500); // Небольшая задержка для инициализации
+                joinForm.style.display = 'none';
+                startConferenceBtn.style.display = 'flex';
+                
+                // Устанавливаем таймер на удаление приглашения через 5 минут
+                inviteTimeout = setTimeout(() => {
+                    if (!peer) { // Если пользователь не начал конференцию
+                        showNotification('Invitation expired after 5 minutes');
+                        resetInvitation();
+                    }
+                }, 5 * 60 * 1000); // 5 минут
             }
+        }
+        
+        // Обработчик кнопки старта конференции
+        startConferenceBtn.addEventListener('click', () => {
+            if (inviteTimeout) {
+                clearTimeout(inviteTimeout);
+                inviteTimeout = null;
+            }
+            joinBtn.click();
+        });
+        
+        // Сброс приглашения
+        function resetInvitation() {
+            startConferenceBtn.style.display = 'none';
+            joinForm.style.display = 'block';
+            usernameInput.value = '';
+            roomNameInput.value = '';
+            
+            // Очищаем параметры URL без перезагрузки
+            window.history.replaceState(null, null, window.location.pathname);
         }
         
         // Слушаем сообщения от родительского окна
@@ -399,9 +464,9 @@
             console.log('Received message:', data);
             
             if (data.type === 'roomUpdate' || data.type === 'teacherAssignedRoom') {
-                // Обновляем параметры комнаты
+                // Обновляем параметры комнаты (используем имя учителя из данных)
                 currentRoom = data.room;
-                currentUser = data.user || data.name;
+                currentUser = data.name || data.user;
                 
                 // Обновляем URL без перезагрузки страницы
                 const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.room)}&user=${encodeURIComponent(data.user)}&name=${encodeURIComponent(data.name)}&autostart=1`;
@@ -411,19 +476,21 @@
                 usernameInput.value = data.name || data.user;
                 roomNameInput.value = data.room;
                 
-                // Если уже подключены, переподключаемся
-                if (peer) {
-                    leaveRoom().then(() => {
-                        setTimeout(() => {
-                            joinBtn.click();
-                        }, 500);
-                    });
-                } else {
-                    // Если еще не подключены, присоединяемся
-                    setTimeout(() => {
-                        joinBtn.click();
-                    }, 500);
+                // Показываем кнопку старта конференции вместо автоматического подключения
+                joinForm.style.display = 'none';
+                startConferenceBtn.style.display = 'flex';
+                
+                // Устанавливаем таймер на удаление приглашения через 5 минут
+                if (inviteTimeout) {
+                    clearTimeout(inviteTimeout);
                 }
+                
+                inviteTimeout = setTimeout(() => {
+                    if (!peer) { // Если пользователь не начал конференцию
+                        showNotification('Invitation expired after 5 minutes');
+                        resetInvitation();
+                    }
+                }, 5 * 60 * 1000); // 5 минут
             }
         });
         
@@ -464,6 +531,7 @@
                 
                 // Update UI
                 joinForm.style.display = 'none';
+                startConferenceBtn.style.display = 'none';
                 controlPanel.style.display = 'flex';
                 
                 // Get list of other participants and connect to them
@@ -489,6 +557,10 @@
                     peer.destroy();
                     peer = null;
                 }
+                
+                // Показываем форму снова
+                joinForm.style.display = 'block';
+                startConferenceBtn.style.display = 'none';
                 
                 // Отправляем сообщение об ошибке родительскому окну
                 if (window.parent !== window) {
@@ -556,9 +628,6 @@
                     console.log('PeerJS connected with ID:', id);
                     peerId = id;
                     resolve();
-                    
-                    // Отправляем ID на сервер (в реальном приложении)
-                    // registerPeerWithServer(id, username, currentRoom);
                 });
                 
                 peer.on('error', (err) => {
@@ -624,19 +693,7 @@
             try {
                 // В реальном приложении здесь должен быть запрос к серверу
                 // для получения списка участников комнаты
-                // Для демонстрации просто подключаемся к случайным пирам
-                
-                // В реальном приложении:
-                // const response = await fetch('/api/get_room_participants', {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify({ room: currentRoom })
-                // });
-                // const participants = await response.json();
-                
-                // Для демонстрации просто ждем новых подключений через PeerJS
                 console.log('Waiting for other participants to connect...');
-                
             } catch (error) {
                 console.error('Error connecting to other participants:', error);
             }
@@ -852,6 +909,7 @@
             // Reset UI
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
+            startConferenceBtn.style.display = 'none';
             videoContainer.innerHTML = '';
             
             currentRoom = null;
@@ -892,13 +950,6 @@
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Conference app initialized');
-            
-            // Если есть параметры autostart, автоматически присоединяемся
-            if (autostartParam === '1' && roomParam && nameParam) {
-                setTimeout(() => {
-                    joinBtn.click();
-                }, 500);
-            }
         });
     </script>
 </body>
