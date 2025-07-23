@@ -380,35 +380,49 @@
             
             // Если autostart=1, автоматически присоединяемся
             if (autostartParam === '1') {
-                joinBtn.click();
+                setTimeout(() => {
+                    joinBtn.click();
+                }, 500); // Небольшая задержка для инициализации
             }
         }
         
         // Слушаем сообщения от родительского окна
         window.addEventListener('message', function(event) {
             // Проверяем источник сообщения
-            if (event.origin !== window.location.origin) return;
+            if (event.origin !== window.location.origin && 
+                !event.origin.includes(window.location.hostname)) {
+                console.log('Message from untrusted origin:', event.origin);
+                return;
+            }
             
             const data = event.data;
+            console.log('Received message:', data);
             
-            if (data.type === 'roomUpdate') {
+            if (data.type === 'roomUpdate' || data.type === 'teacherAssignedRoom') {
                 // Обновляем параметры комнаты
                 currentRoom = data.room;
-                currentUser = data.user;
+                currentUser = data.user || data.name;
                 
                 // Обновляем URL без перезагрузки страницы
-                const newUrl = `${window.location.pathname}?room=${data.room}&user=${data.user}&name=${data.name}&autostart=1`;
+                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.room)}&user=${encodeURIComponent(data.user)}&name=${encodeURIComponent(data.name)}&autostart=1`;
                 window.history.replaceState(null, null, newUrl);
                 
                 // Обновляем поля формы
-                usernameInput.value = data.name;
+                usernameInput.value = data.name || data.user;
                 roomNameInput.value = data.room;
                 
                 // Если уже подключены, переподключаемся
                 if (peer) {
                     leaveRoom().then(() => {
-                        joinBtn.click();
+                        setTimeout(() => {
+                            joinBtn.click();
+                        }, 500);
                     });
+                } else {
+                    // Если еще не подключены, присоединяемся
+                    setTimeout(() => {
+                        joinBtn.click();
+                    }, 500);
                 }
             }
         });
@@ -455,6 +469,15 @@
                 // Get list of other participants and connect to them
                 await connectToOtherParticipants();
                 
+                // Отправляем сообщение родительскому окну о успешном подключении
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'conferenceConnected',
+                        room: currentRoom,
+                        user: currentUser
+                    }, '*');
+                }
+                
             } catch (error) {
                 console.error('Error joining room:', error);
                 showNotification('Error joining room: ' + error.message);
@@ -466,11 +489,25 @@
                     peer.destroy();
                     peer = null;
                 }
+                
+                // Отправляем сообщение об ошибке родительскому окну
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'conferenceError',
+                        error: error.message
+                    }, '*');
+                }
             }
         });
         
         // Add local video
         function addLocalVideo(stream) {
+            // Удаляем предыдущее локальное видео, если оно есть
+            const existingLocalVideo = document.getElementById('localVideoItem');
+            if (existingLocalVideo) {
+                existingLocalVideo.remove();
+            }
+            
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item local-video';
             videoItem.id = 'localVideoItem';
@@ -500,122 +537,106 @@
         // Initialize PeerJS connection
         async function initializePeerJS(username) {
             return new Promise((resolve, reject) => {
-                fetch('/api/get_peer_id', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ user_id: username })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        peer = new Peer(data.peer_id);
-                        
-                        peer.on('open', (id) => {
-                            console.log('PeerJS connected with ID:', id);
-                            peerId = id;
-                            resolve();
-                        });
-                        
-                        peer.on('error', (err) => {
-                            console.error('PeerJS error:', err);
-                            reject(err);
-                        });
-                        
-                        peer.on('connection', (conn) => {
-                            console.log('Incoming connection from:', conn.peer);
-                            
-                            conn.on('open', () => {
-                                console.log('Connection established with:', conn.peer);
-                                connections[conn.peer] = conn;
-                            });
-                            
-                            conn.on('close', () => {
-                                console.log('Connection closed with:', conn.peer);
-                                removeRemoteVideo(conn.peer);
-                                delete connections[conn.peer];
-                            });
-                        });
-                        
-                        peer.on('call', (call) => {
-                            console.log('Incoming call from:', call.peer);
-                            
-                            // Answer with current stream (either camera or screen share)
-                            const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
-                            call.answer(streamToAnswerWith);
-                            
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(call.peer, remoteStream);
-                            });
-                            
-                            call.on('close', () => {
-                                console.log('Call ended with:', call.peer);
-                                removeRemoteVideo(call.peer);
-                                if (calls[call.peer]) {
-                                    delete calls[call.peer];
-                                }
-                            });
-                            
-                            calls[call.peer] = call;
-                        });
-                        
-                    } else {
-                        reject(new Error(data.error || 'Failed to get PeerJS ID'));
+                // Для демонстрации используем случайный ID
+                // В реальном приложении нужно получать ID с сервера
+                const randomId = 'peer-' + Math.random().toString(36).substr(2, 9);
+                
+                peer = new Peer(randomId, {
+                    debug: 3,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' }
+                        ]
                     }
-                })
-                .catch(reject);
+                });
+                
+                peer.on('open', (id) => {
+                    console.log('PeerJS connected with ID:', id);
+                    peerId = id;
+                    resolve();
+                    
+                    // Отправляем ID на сервер (в реальном приложении)
+                    // registerPeerWithServer(id, username, currentRoom);
+                });
+                
+                peer.on('error', (err) => {
+                    console.error('PeerJS error:', err);
+                    reject(err);
+                });
+                
+                peer.on('connection', (conn) => {
+                    console.log('Incoming connection from:', conn.peer);
+                    
+                    conn.on('open', () => {
+                        console.log('Connection established with:', conn.peer);
+                        connections[conn.peer] = conn;
+                        
+                        // Отправляем информацию о себе
+                        conn.send({
+                            type: 'userInfo',
+                            username: currentUser
+                        });
+                    });
+                    
+                    conn.on('data', (data) => {
+                        console.log('Received data from peer:', data);
+                        if (data.type === 'userInfo') {
+                            // Обновляем имя участника
+                            updateParticipantName(conn.peer, data.username);
+                        }
+                    });
+                    
+                    conn.on('close', () => {
+                        console.log('Connection closed with:', conn.peer);
+                        removeRemoteVideo(conn.peer);
+                        delete connections[conn.peer];
+                    });
+                });
+                
+                peer.on('call', (call) => {
+                    console.log('Incoming call from:', call.peer);
+                    
+                    // Answer with current stream (either camera or screen share)
+                    const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
+                    call.answer(streamToAnswerWith);
+                    
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(call.peer, remoteStream);
+                    });
+                    
+                    call.on('close', () => {
+                        console.log('Call ended with:', call.peer);
+                        removeRemoteVideo(call.peer);
+                        if (calls[call.peer]) {
+                            delete calls[call.peer];
+                        }
+                    });
+                    
+                    calls[call.peer] = call;
+                });
             });
         }
         
         // Connect to other participants
         async function connectToOtherParticipants() {
             try {
-                const response = await fetch('/api/get_peer_ids', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_name: currentRoom,
-                        current_user: currentUser
-                    })
-                });
+                // В реальном приложении здесь должен быть запрос к серверу
+                // для получения списка участников комнаты
+                // Для демонстрации просто подключаемся к случайным пирам
                 
-                const data = await response.json();
+                // В реальном приложении:
+                // const response = await fetch('/api/get_room_participants', {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify({ room: currentRoom })
+                // });
+                // const participants = await response.json();
                 
-                if (data.success) {
-                    for (const [user, peerId] of Object.entries(data.peers)) {
-                        const conn = peer.connect(peerId);
-                        
-                        conn.on('open', () => {
-                            console.log('Connected to peer:', peerId);
-                            connections[peerId] = conn;
-                            
-                            const call = peer.call(peerId, localStream);
-                            
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(peerId, remoteStream);
-                            });
-                            
-                            call.on('close', () => {
-                                console.log('Call ended with:', peerId);
-                                removeRemoteVideo(peerId);
-                                if (calls[peerId]) {
-                                    delete calls[peerId];
-                                }
-                            });
-                            
-                            calls[peerId] = call;
-                        });
-                        
-                        conn.on('close', () => {
-                            console.log('Connection closed with:', peerId);
-                            removeRemoteVideo(peerId);
-                            delete connections[peerId];
-                        });
-                    }
-                }
+                // Для демонстрации просто ждем новых подключений через PeerJS
+                console.log('Waiting for other participants to connect...');
+                
             } catch (error) {
                 console.error('Error connecting to other participants:', error);
             }
@@ -623,7 +644,12 @@
         
         // Add remote video
         function addRemoteVideo(peerId, stream) {
-            if (document.getElementById(`remoteVideo-${peerId}`)) return;
+            if (document.getElementById(`remoteVideo-${peerId}`)) {
+                // Обновляем существующий поток
+                const existingVideo = document.getElementById(`remoteVideo-${peerId}`);
+                existingVideo.srcObject = stream;
+                return;
+            }
             
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item';
@@ -645,6 +671,20 @@
             videoItem.appendChild(video);
             videoItem.appendChild(participantInfo);
             videoContainer.appendChild(videoItem);
+        }
+        
+        // Update participant name
+        function updateParticipantName(peerId, username) {
+            const videoItem = document.getElementById(`videoItem-${peerId}`);
+            if (videoItem) {
+                const participantInfo = videoItem.querySelector('.participant-info');
+                if (participantInfo) {
+                    participantInfo.innerHTML = `
+                        <div class="participant-status"></div>
+                        <span>${username}</span>
+                    `;
+                }
+            }
         }
         
         // Remove remote video
@@ -697,46 +737,18 @@
         // Start screen sharing
         async function startScreenShare() {
             try {
-                // For iOS/Safari, we need to use the experimental API
-                const constraints = {
+                if (!navigator.mediaDevices.getDisplayMedia) {
+                    throw new Error('Screen sharing not supported in this browser');
+                }
+                
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
-                        mediaSource: 'screen',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
                         frameRate: { ideal: 30 }
                     },
                     audio: false
-                };
-                
-                // Adjust constraints for different browsers
-                if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
-                    // iOS devices
-                    constraints.video = true;
-                } else if (navigator.mediaDevices.getDisplayMedia) {
-                    // Standard getDisplayMedia
-                    screenStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: {
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 },
-                            frameRate: { ideal: 30 }
-                        },
-                        audio: false
-                    });
-                } else if (navigator.mediaDevices.getUserMedia) {
-                    // Fallback for older browsers
-                    screenStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            mandatory: {
-                                chromeMediaSource: 'screen',
-                                maxWidth: 1920,
-                                maxHeight: 1080,
-                                maxFrameRate: 30
-                            }
-                        }
-                    });
-                } else {
-                    throw new Error('Screen sharing not supported');
-                }
+                });
                 
                 // Show screen share preview
                 screenShareVideo.srcObject = screenStream;
@@ -837,23 +849,6 @@
                 peer = null;
             }
             
-            // Notify server we're leaving
-            try {
-                await fetch('/api/get_peer_ids', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_name: currentRoom,
-                        current_user: currentUser,
-                        action: 'leave'
-                    })
-                });
-            } catch (error) {
-                console.error('Error notifying server about leaving:', error);
-            }
-            
             // Reset UI
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
@@ -862,6 +857,13 @@
             currentRoom = null;
             currentUser = null;
             peerId = null;
+            
+            // Отправляем сообщение родительскому окну о выходе
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'conferenceDisconnected'
+                }, '*');
+            }
         }
         
         // Show notification
@@ -884,6 +886,18 @@
         window.addEventListener('beforeunload', async () => {
             if (currentRoom) {
                 await leaveRoom();
+            }
+        });
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Conference app initialized');
+            
+            // Если есть параметры autostart, автоматически присоединяемся
+            if (autostartParam === '1' && roomParam && nameParam) {
+                setTimeout(() => {
+                    joinBtn.click();
+                }, 500);
             }
         });
     </script>
