@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Video Conference</title>
+    <title>Video Conference Platform</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,6 @@
             overflow: hidden;
         }
 
-        /* Основной контейнер видео */
         .video-container {
             position: relative;
             width: 100%;
@@ -31,7 +30,6 @@
             padding: 10px;
         }
 
-        /* Видео участников */
         .video-item {
             position: relative;
             background: #1a1a1f;
@@ -46,12 +44,6 @@
             object-fit: cover;
         }
 
-        .video-item:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
-        }
-
-        /* Информация о участнике */
         .participant-info {
             position: absolute;
             bottom: 15px;
@@ -72,7 +64,6 @@
             border-radius: 50%;
         }
 
-        /* Панель управления */
         .control-panel {
             position: fixed;
             bottom: 30px;
@@ -116,22 +107,12 @@
             background: #ff3b30;
         }
 
-        .control-btn.danger:hover {
-            background: #ff5a52;
-        }
-
-        .control-btn i {
-            pointer-events: none;
-        }
-
-        /* Форма входа */
         .join-form {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(30, 30, 40, 0.95);
-            backdrop-filter: blur(20px);
             padding: 40px;
             border-radius: 20px;
             width: 90%;
@@ -170,12 +151,6 @@
             transition: all 0.3s ease;
         }
 
-        .form-group input:focus {
-            outline: none;
-            border-color: #0095ff;
-            background: rgba(0, 149, 255, 0.1);
-        }
-
         .join-btn {
             width: 100%;
             padding: 15px;
@@ -190,12 +165,6 @@
             margin-top: 10px;
         }
 
-        .join-btn:hover {
-            background: #007acc;
-            transform: translateY(-2px);
-        }
-
-        /* Уведомления */
         .notification {
             position: fixed;
             top: 20px;
@@ -217,176 +186,22 @@
             to { top: 20px; opacity: 1; }
         }
 
-        /* Адаптивность */
-        @media (max-width: 768px) {
-            .control-panel {
-                bottom: 15px;
-                padding: 10px 15px;
-            }
-            
-            .control-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-            }
-        }
-
-        /* Стиль для демонстрации экрана */
-        .screen-share-item {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            z-index: 90;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .screen-share-item video {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .screen-share-controls {
+        .teacher-badge {
             position: fixed;
             top: 20px;
-            right: 20px;
-            z-index: 91;
-            display: flex;
-            gap: 10px;
-        }
-
-        .screen-share-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
+            left: 20px;
+            background: #4CAF50;
             color: white;
             padding: 8px 16px;
             border-radius: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 5px;
             font-size: 14px;
-        }
-
-        .screen-share-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Стиль для кнопки старта конференции */
-        .start-conference-btn {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 15px 30px;
-            background: #0095ff;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .start-conference-btn:hover {
-            background: #007acc;
-            transform: translate(-50%, -50%) scale(1.05);
-        }
-
-        .start-conference-btn i {
-            font-size: 20px;
-        }
-
-        /* Стиль для кнопки приглашения */
-        .invite-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .invite-btn:hover {
-            background: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .invite-btn i {
-            font-size: 18px;
+            z-index: 1000;
         }
     </style>
-    <!-- Иконки Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <!-- Контейнер для видео участников -->
-    <div class="video-container" id="videoContainer">
-        <!-- Видео будет добавляться динамически -->
-    </div>
-
-    <!-- Контейнер для демонстрации экрана -->
-    <div id="screenShareContainer" style="display: none;">
-        <div class="screen-share-controls">
-            <button class="screen-share-btn" id="stopScreenShareBtn">
-                <i class="material-icons">stop</i>
-                Stop Sharing
-            </button>
-        </div>
-        <video id="screenShareVideo" autoplay playsinline></video>
-    </div>
-
-    <!-- Форма входа -->
-    <div class="join-form" id="joinForm">
-        <h2>Join Video Conference</h2>
-        <div class="form-group">
-            <label for="username">Your Name</label>
-            <input type="text" id="username" placeholder="Enter your name">
-        </div>
-        <div class="form-group">
-            <label for="roomName">Room ID</label>
-            <input type="text" id="roomName" placeholder="Enter room ID">
-        </div>
-        <button class="join-btn" id="joinBtn">
-            Join Room
-        </button>
-    </div>
-
-    <!-- Кнопка старта конференции (видна только при получении приглашения) -->
-    <button class="start-conference-btn" id="startConferenceBtn" style="display: none;">
-        <i class="material-icons">video_call</i>
-        Start Conference
-    </button>
-
-    <!-- Кнопка приглашения (появляется при получении приглашения) -->
-    <button class="invite-btn" id="inviteBtn" style="display: none;">
-        <i class="material-icons">person_add</i>
-        Join Conference
-    </button>
-
-    <!-- Панель управления -->
+    <div class="video-container" id="videoContainer"></div>
     <div class="control-panel" id="controlPanel" style="display: none;">
         <button class="control-btn" id="toggleVideoBtn" title="Toggle Video">
             <i class="material-icons">videocam</i>
@@ -394,310 +209,187 @@
         <button class="control-btn" id="toggleAudioBtn" title="Toggle Audio">
             <i class="material-icons">mic</i>
         </button>
-        <button class="control-btn" id="screenShareBtn" title="Share Screen">
-            <i class="material-icons">screen_share</i>
-        </button>
-        <button class="control-btn" id="participantsBtn" title="Participants">
-            <i class="material-icons">people</i>
-        </button>
         <button class="control-btn danger" id="leaveBtn" title="Leave Call">
             <i class="material-icons">call_end</i>
         </button>
     </div>
 
-    <!-- Подключаем PeerJS библиотеку -->
+    <div class="join-form" id="joinForm">
+        <h2>Join Video Conference</h2>
+        <div class="form-group">
+            <label for="username">Your Name</label>
+            <input type="text" id="username" placeholder="Enter your name">
+        </div>
+        <div class="form-group">
+            <label for="roomName">Teacher's Room ID</label>
+            <input type="text" id="roomName" placeholder="Enter teacher's room ID">
+        </div>
+        <button class="join-btn" id="joinBtn">Join Room</button>
+    </div>
+
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    
     <script>
         // Global variables
         let localStream = null;
-        let screenStream = null;
         let currentRoom = null;
         let currentUser = null;
         let isVideoEnabled = true;
         let isAudioEnabled = true;
-        let isScreenSharing = false;
-        let videoTrack = null;
-        let audioTrack = null;
         let peer = null;
-        let peerId = null;
         let connections = {};
         let calls = {};
-        let inviteTimeout = null;
-        let currentInvite = null;
-        
+
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
         const leaveBtn = document.getElementById('leaveBtn');
         const toggleVideoBtn = document.getElementById('toggleVideoBtn');
         const toggleAudioBtn = document.getElementById('toggleAudioBtn');
-        const screenShareBtn = document.getElementById('screenShareBtn');
-        const stopScreenShareBtn = document.getElementById('stopScreenShareBtn');
         const usernameInput = document.getElementById('username');
         const roomNameInput = document.getElementById('roomName');
         const videoContainer = document.getElementById('videoContainer');
-        const screenShareContainer = document.getElementById('screenShareContainer');
-        const screenShareVideo = document.getElementById('screenShareVideo');
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
-        const startConferenceBtn = document.getElementById('startConferenceBtn');
-        const inviteBtn = document.getElementById('inviteBtn');
-        
-        // Извлекаем параметры из URL
+
+        // Extract URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
         const userParam = urlParams.get('user');
         const nameParam = urlParams.get('name');
-        const autostartParam = urlParams.get('autostart');
-        const teacherParam = urlParams.get('teacher'); // Новый параметр для имени учителя
-        
-        // Если есть параметры в URL, заполняем форму
+        const isTeacher = urlParams.get('teacher') === 'true';
+
+        // Auto-fill form if URL parameters exist
         if (roomParam && userParam && nameParam) {
             usernameInput.value = nameParam;
-            // Используем teacherParam, если он есть, иначе roomParam
-            roomNameInput.value = teacherParam || roomParam;
-            
-            // Показываем кнопку старта вместо автоматического подключения
-            if (autostartParam === '1') {
-                joinForm.style.display = 'none';
-                startConferenceBtn.style.display = 'flex';
-                
-                // Устанавливаем таймер на удаление приглашения через 5 минут
-                inviteTimeout = setTimeout(() => {
-                    if (!peer) { // Если пользователь не начал конференцию
-                        showNotification('Invitation expired after 5 minutes');
-                        resetInvitation();
-                    }
-                }, 5 * 60 * 1000); // 5 минут
-            }
+            roomNameInput.value = roomParam;
         }
-        
-        // Обработчик кнопки старта конференции
-        startConferenceBtn.addEventListener('click', () => {
-            if (inviteTimeout) {
-                clearTimeout(inviteTimeout);
-                inviteTimeout = null;
-            }
-            joinBtn.click();
-        });
 
-        // Обработчик кнопки приглашения
-        inviteBtn.addEventListener('click', () => {
-            if (currentInvite) {
-                // Обновляем URL с параметрами приглашения
-                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(currentInvite.room)}&user=${encodeURIComponent(currentInvite.student)}&name=${encodeURIComponent(currentInvite.student)}&teacher=${encodeURIComponent(currentInvite.teacher)}&autostart=1`;
-                window.history.replaceState(null, null, newUrl);
-                
-                // Заполняем форму
-                usernameInput.value = currentInvite.student;
-                roomNameInput.value = currentInvite.teacher; // Используем имя учителя как room name
-                
-                // Показываем кнопку старта конференции
-                joinForm.style.display = 'none';
-                startConferenceBtn.style.display = 'flex';
-                inviteBtn.style.display = 'none';
-                
-                // Устанавливаем таймер на удаление приглашения через 5 минут
-                if (inviteTimeout) {
-                    clearTimeout(inviteTimeout);
-                }
-                
-                inviteTimeout = setTimeout(() => {
-                    if (!peer) { // Если пользователь не начал конференцию
-                        showNotification('Invitation expired after 5 minutes');
-                        resetInvitation();
-                    }
-                }, 5 * 60 * 1000); // 5 минут
-            }
-        });
-        
-        // Сброс приглашения
-        function resetInvitation() {
-            startConferenceBtn.style.display = 'none';
-            inviteBtn.style.display = 'none';
-            joinForm.style.display = 'block';
-            usernameInput.value = '';
-            roomNameInput.value = '';
-            currentInvite = null;
-            
-            // Очищаем параметры URL без перезагрузки
-            window.history.replaceState(null, null, window.location.pathname);
-        }
-        
-        // Слушаем сообщения от родительского окна
-        window.addEventListener('message', function(event) {
-            // Проверяем источник сообщения
-            if (event.origin !== window.location.origin && 
-                !event.origin.includes(window.location.hostname)) {
-                console.log('Message from untrusted origin:', event.origin);
-                return;
-            }
-            
-            const data = event.data;
-            console.log('Received message:', data);
-            
-            if (data.type === 'teacherInvite') {
-                // Сохраняем данные приглашения
-                currentInvite = {
-                    room: data.room,
-                    teacher: data.teacher, // Сохраняем имя учителя
-                    student: data.student,
-                    inviteUrl: data.inviteUrl,
-                    expiresAt: data.expiresAt
-                };
-                
-                // Показываем кнопку приглашения
-                joinForm.style.display = 'none';
-                startConferenceBtn.style.display = 'none';
-                inviteBtn.style.display = 'flex';
-                
-                // Устанавливаем таймер на удаление приглашения
-                if (inviteTimeout) {
-                    clearTimeout(inviteTimeout);
-                }
-                
-                const timeLeft = data.expiresAt - Date.now();
-                if (timeLeft > 0) {
-                    inviteTimeout = setTimeout(() => {
-                        if (!peer) { // Если пользователь не начал конференцию
-                            showNotification('Invitation expired after 5 minutes');
-                            resetInvitation();
-                        }
-                    }, timeLeft);
-                } else {
-                    showNotification('Invitation has already expired');
-                    resetInvitation();
-                }
-            }
-            else if (data.type === 'roomUpdate' || data.type === 'teacherAssignedRoom') {
-                // Обновляем параметры комнаты (используем имя учителя из данных)
-                currentRoom = data.room;
-                currentUser = data.name || data.user;
-                
-                // Обновляем URL без перезагрузки страницы
-                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.room)}&user=${encodeURIComponent(data.user)}&name=${encodeURIComponent(data.name)}&teacher=${encodeURIComponent(data.teacher || data.room)}&autostart=1`;
-                window.history.replaceState(null, null, newUrl);
-                
-                // Обновляем поля формы
-                usernameInput.value = data.name || data.user;
-                roomNameInput.value = data.teacher || data.room; // Используем имя учителя или room name
-                
-                // Показываем кнопку старта конференции вместо автоматического подключения
-                joinForm.style.display = 'none';
-                startConferenceBtn.style.display = 'flex';
-                inviteBtn.style.display = 'none';
-                
-                // Устанавливаем таймер на удаление приглашения через 5 минут
-                if (inviteTimeout) {
-                    clearTimeout(inviteTimeout);
-                }
-                
-                inviteTimeout = setTimeout(() => {
-                    if (!peer) { // Если пользователь не начал конференцию
-                        showNotification('Invitation expired after 5 minutes');
-                        resetInvitation();
-                    }
-                }, 5 * 60 * 1000); // 5 минут
-            }
-        });
-        
-        // Join room
+        // Join room handler
         joinBtn.addEventListener('click', async () => {
             const username = usernameInput.value.trim();
             const roomName = roomNameInput.value.trim();
-            
+
             if (!username || !roomName) {
                 showNotification('Please enter your name and room name');
                 return;
             }
-            
+
             currentUser = username;
             currentRoom = roomName;
-            
+
             try {
                 // Get user media
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    },
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true
-                    }
+                    video: true,
+                    audio: true
                 });
-                
+
                 // Add local video
                 addLocalVideo(localStream);
-                
-                // Initialize PeerJS
-                await initializePeerJS(username);
-                
-                // Update UI
-                joinForm.style.display = 'none';
-                startConferenceBtn.style.display = 'none';
-                inviteBtn.style.display = 'none';
-                controlPanel.style.display = 'flex';
-                
-                // Get list of other participants and connect to them
-                await connectToOtherParticipants();
-                
-                // Отправляем сообщение родительскому окну о успешном подключении
-                if (window.parent !== window) {
-                    window.parent.postMessage({
-                        type: 'conferenceConnected',
-                        room: currentRoom,
-                        user: currentUser
-                    }, '*');
-                }
-                
+
+                // Initialize PeerJS with room name as peer ID for teacher
+                // and random ID for students
+                const peerId = isTeacher ? roomName : `student-${Math.random().toString(36).substr(2, 9)}`;
+                peer = new Peer(peerId, {
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                });
+
+                peer.on('open', () => {
+                    console.log('Peer connected with ID:', peer.id);
+                    joinForm.style.display = 'none';
+                    controlPanel.style.display = 'flex';
+
+                    if (isTeacher) {
+                        showTeacherBadge();
+                    } else {
+                        // For students, connect to teacher's room
+                        connectToRoom(roomName);
+                    }
+                });
+
+                peer.on('error', (err) => {
+                    console.error('Peer error:', err);
+                    showNotification('Connection error: ' + err.message);
+                });
+
+                peer.on('connection', (conn) => {
+                    console.log('Incoming connection:', conn.peer);
+                    setupConnection(conn);
+                });
+
+                peer.on('call', (call) => {
+                    console.log('Incoming call from:', call.peer);
+                    call.answer(localStream);
+                    
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(call.peer, remoteStream);
+                    });
+                });
+
             } catch (error) {
                 console.error('Error joining room:', error);
-                showNotification('Error joining room: ' + error.message);
+                showNotification('Error: ' + error.message);
                 if (localStream) {
                     localStream.getTracks().forEach(track => track.stop());
-                    localStream = null;
-                }
-                if (peer) {
-                    peer.destroy();
-                    peer = null;
-                }
-                
-                // Показываем форму снова
-                joinForm.style.display = 'block';
-                startConferenceBtn.style.display = 'none';
-                inviteBtn.style.display = 'none';
-                
-                // Отправляем сообщение об ошибке родительскому окну
-                if (window.parent !== window) {
-                    window.parent.postMessage({
-                        type: 'conferenceError',
-                        error: error.message
-                    }, '*');
                 }
             }
         });
-        
-        // Add local video
+
+        // Connect to teacher's room
+        function connectToRoom(roomName) {
+            const conn = peer.connect(roomName, {
+                reliable: true,
+                metadata: { username: currentUser }
+            });
+
+            setupConnection(conn);
+
+            // Call the teacher
+            const call = peer.call(roomName, localStream);
+            call.on('stream', (remoteStream) => {
+                addRemoteVideo(roomName, remoteStream);
+            });
+            calls[roomName] = call;
+        }
+
+        // Setup data connection
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                console.log('Connected to:', conn.peer);
+                connections[conn.peer] = conn;
+                
+                // Send user info
+                conn.send({
+                    type: 'user-info',
+                    username: currentUser
+                });
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'user-info') {
+                    updateParticipantName(data.peerId, data.username);
+                }
+            });
+
+            conn.on('close', () => {
+                console.log('Connection closed:', conn.peer);
+                removeRemoteVideo(conn.peer);
+                delete connections[conn.peer];
+            });
+        }
+
+        // Add local video element
         function addLocalVideo(stream) {
-            // Удаляем предыдущее локальное видео, если оно есть
-            const existingLocalVideo = document.getElementById('localVideoItem');
-            if (existingLocalVideo) {
-                existingLocalVideo.remove();
-            }
-            
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item local-video';
-            videoItem.id = 'localVideoItem';
             
             const video = document.createElement('video');
-            video.id = 'localVideo';
             video.autoplay = true;
             video.muted = true;
-            video.playsInline = true;
             video.srcObject = stream;
             
             const participantInfo = document.createElement('div');
@@ -710,121 +402,23 @@
             videoItem.appendChild(video);
             videoItem.appendChild(participantInfo);
             videoContainer.appendChild(videoItem);
-            
-            videoTrack = stream.getVideoTracks()[0];
-            audioTrack = stream.getAudioTracks()[0];
         }
-        
-        // Initialize PeerJS connection
-        async function initializePeerJS(username) {
-            return new Promise((resolve, reject) => {
-                // Для демонстрации используем случайный ID
-                // В реальном приложении нужно получать ID с сервера
-                const randomId = 'peer-' + Math.random().toString(36).substr(2, 9);
-                
-                peer = new Peer(randomId, {
-                    debug: 3,
-                    config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:stun1.l.google.com:19302' },
-                            { urls: 'stun:stun2.l.google.com:19302' }
-                        ]
-                    }
-                });
-                
-                peer.on('open', (id) => {
-                    console.log('PeerJS connected with ID:', id);
-                    peerId = id;
-                    resolve();
-                });
-                
-                peer.on('error', (err) => {
-                    console.error('PeerJS error:', err);
-                    reject(err);
-                });
-                
-                peer.on('connection', (conn) => {
-                    console.log('Incoming connection from:', conn.peer);
-                    
-                    conn.on('open', () => {
-                        console.log('Connection established with:', conn.peer);
-                        connections[conn.peer] = conn;
-                        
-                        // Отправляем информацию о себе
-                        conn.send({
-                            type: 'userInfo',
-                            username: currentUser
-                        });
-                    });
-                    
-                    conn.on('data', (data) => {
-                        console.log('Received data from peer:', data);
-                        if (data.type === 'userInfo') {
-                            // Обновляем имя участника
-                            updateParticipantName(conn.peer, data.username);
-                        }
-                    });
-                    
-                    conn.on('close', () => {
-                        console.log('Connection closed with:', conn.peer);
-                        removeRemoteVideo(conn.peer);
-                        delete connections[conn.peer];
-                    });
-                });
-                
-                peer.on('call', (call) => {
-                    console.log('Incoming call from:', call.peer);
-                    
-                    // Answer with current stream (either camera or screen share)
-                    const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
-                    call.answer(streamToAnswerWith);
-                    
-                    call.on('stream', (remoteStream) => {
-                        addRemoteVideo(call.peer, remoteStream);
-                    });
-                    
-                    call.on('close', () => {
-                        console.log('Call ended with:', call.peer);
-                        removeRemoteVideo(call.peer);
-                        if (calls[call.peer]) {
-                            delete calls[call.peer];
-                        }
-                    });
-                    
-                    calls[call.peer] = call;
-                });
-            });
-        }
-        
-        // Connect to other participants
-        async function connectToOtherParticipants() {
-            try {
-                // В реальном приложении здесь должен быть запрос к серверу
-                // для получения списка участников комнаты
-                console.log('Waiting for other participants to connect...');
-            } catch (error) {
-                console.error('Error connecting to other participants:', error);
-            }
-        }
-        
-        // Add remote video
+
+        // Add remote video element
         function addRemoteVideo(peerId, stream) {
-            if (document.getElementById(`remoteVideo-${peerId}`)) {
-                // Обновляем существующий поток
-                const existingVideo = document.getElementById(`remoteVideo-${peerId}`);
+            // Check if video already exists
+            const existingVideo = document.getElementById(`remote-${peerId}`);
+            if (existingVideo) {
                 existingVideo.srcObject = stream;
                 return;
             }
-            
+
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item';
-            videoItem.id = `videoItem-${peerId}`;
+            videoItem.id = `remote-${peerId}`;
             
             const video = document.createElement('video');
-            video.id = `remoteVideo-${peerId}`;
             video.autoplay = true;
-            video.playsInline = true;
             video.srcObject = stream;
             
             const participantInfo = document.createElement('div');
@@ -838,202 +432,37 @@
             videoItem.appendChild(participantInfo);
             videoContainer.appendChild(videoItem);
         }
-        
+
         // Update participant name
         function updateParticipantName(peerId, username) {
-            const videoItem = document.getElementById(`videoItem-${peerId}`);
+            const videoItem = document.getElementById(`remote-${peerId}`);
             if (videoItem) {
-                const participantInfo = videoItem.querySelector('.participant-info');
-                if (participantInfo) {
-                    participantInfo.innerHTML = `
+                const infoElement = videoItem.querySelector('.participant-info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
                         <div class="participant-status"></div>
                         <span>${username}</span>
                     `;
                 }
             }
         }
-        
+
         // Remove remote video
         function removeRemoteVideo(peerId) {
-            const videoItem = document.getElementById(`videoItem-${peerId}`);
+            const videoItem = document.getElementById(`remote-${peerId}`);
             if (videoItem) {
                 videoItem.remove();
             }
         }
-        
-        // Toggle video
-        toggleVideoBtn.addEventListener('click', () => {
-            isVideoEnabled = !isVideoEnabled;
-            if (videoTrack) {
-                videoTrack.enabled = isVideoEnabled;
-                toggleVideoBtn.innerHTML = isVideoEnabled 
-                    ? '<i class="material-icons">videocam</i>' 
-                    : '<i class="material-icons">videocam_off</i>';
-                toggleVideoBtn.classList.toggle('active', !isVideoEnabled);
-            }
-        });
-        
-        // Toggle audio
-        toggleAudioBtn.addEventListener('click', () => {
-            isAudioEnabled = !isAudioEnabled;
-            if (audioTrack) {
-                audioTrack.enabled = isAudioEnabled;
-                toggleAudioBtn.innerHTML = isAudioEnabled 
-                    ? '<i class="material-icons">mic</i>' 
-                    : '<i class="material-icons">mic_off</i>';
-                toggleAudioBtn.classList.toggle('active', !isAudioEnabled);
-            }
-        });
-        
-        // Screen share
-        screenShareBtn.addEventListener('click', toggleScreenShare);
-        
-        // Stop screen share
-        stopScreenShareBtn.addEventListener('click', stopScreenShare);
-        
-        // Toggle screen sharing
-        async function toggleScreenShare() {
-            if (isScreenSharing) {
-                await stopScreenShare();
-            } else {
-                await startScreenShare();
-            }
+
+        // Show teacher badge
+        function showTeacherBadge() {
+            const badge = document.createElement('div');
+            badge.className = 'teacher-badge';
+            badge.innerHTML = '<i class="material-icons">school</i> Teacher';
+            document.body.appendChild(badge);
         }
-        
-        // Start screen sharing
-        async function startScreenShare() {
-            try {
-                if (!navigator.mediaDevices.getDisplayMedia) {
-                    throw new Error('Screen sharing not supported in this browser');
-                }
-                
-                screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: {
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                        frameRate: { ideal: 30 }
-                    },
-                    audio: false
-                });
-                
-                // Show screen share preview
-                screenShareVideo.srcObject = screenStream;
-                screenShareContainer.style.display = 'block';
-                
-                // Update UI
-                screenShareBtn.innerHTML = '<i class="material-icons">stop_screen_share</i>';
-                screenShareBtn.classList.add('active');
-                
-                isScreenSharing = true;
-                
-                // Replace video track in all existing calls
-                const screenVideoTrack = screenStream.getVideoTracks()[0];
-                for (const call of Object.values(calls)) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track.kind === 'video') {
-                            sender.replaceTrack(screenVideoTrack);
-                        }
-                    });
-                }
-                
-                // Handle when screen sharing is stopped by browser UI
-                screenStream.getVideoTracks()[0].onended = () => {
-                    stopScreenShare();
-                };
-                
-            } catch (error) {
-                console.error('Error starting screen share:', error);
-                showNotification('Error starting screen share: ' + error.message);
-            }
-        }
-        
-        // Stop screen sharing
-        async function stopScreenShare() {
-            if (!isScreenSharing) return;
-            
-            // Hide screen share preview
-            screenShareContainer.style.display = 'none';
-            
-            // Stop screen stream
-            screenStream.getTracks().forEach(track => track.stop());
-            screenStream = null;
-            
-            // Update UI
-            screenShareBtn.innerHTML = '<i class="material-icons">screen_share</i>';
-            screenShareBtn.classList.remove('active');
-            
-            isScreenSharing = false;
-            
-            // Restore camera video track in all existing calls
-            if (localStream) {
-                const cameraVideoTrack = localStream.getVideoTracks()[0];
-                for (const call of Object.values(calls)) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track.kind === 'video') {
-                            sender.replaceTrack(cameraVideoTrack);
-                        }
-                    });
-                }
-            }
-        }
-        
-        // Leave room
-        leaveBtn.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to leave the room?')) {
-                await leaveRoom();
-            }
-        });
-        
-        // Leave the room
-        async function leaveRoom() {
-            // Stop screen sharing if active
-            if (isScreenSharing) {
-                await stopScreenShare();
-            }
-            
-            // Close all connections
-            for (const conn of Object.values(connections)) {
-                conn.close();
-            }
-            connections = {};
-            
-            // Close all calls
-            for (const call of Object.values(calls)) {
-                call.close();
-            }
-            calls = {};
-            
-            // Stop local stream
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
-            // Destroy PeerJS instance
-            if (peer) {
-                peer.destroy();
-                peer = null;
-            }
-            
-            // Reset UI
-            joinForm.style.display = 'block';
-            controlPanel.style.display = 'none';
-            startConferenceBtn.style.display = 'none';
-            inviteBtn.style.display = 'none';
-            videoContainer.innerHTML = '';
-            
-            currentRoom = null;
-            currentUser = null;
-            peerId = null;
-            
-            // Отправляем сообщение родительскому окну о выходе
-            if (window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'conferenceDisconnected'
-                }, '*');
-            }
-        }
-        
+
         // Show notification
         function showNotification(message) {
             const notification = document.createElement('div');
@@ -1049,17 +478,72 @@
                 notification.remove();
             }, 3000);
         }
-        
-        // Handle page unload
-        window.addEventListener('beforeunload', async () => {
-            if (currentRoom) {
-                await leaveRoom();
+
+        // Toggle video
+        toggleVideoBtn.addEventListener('click', () => {
+            if (localStream) {
+                isVideoEnabled = !isVideoEnabled;
+                localStream.getVideoTracks()[0].enabled = isVideoEnabled;
+                toggleVideoBtn.innerHTML = isVideoEnabled 
+                    ? '<i class="material-icons">videocam</i>' 
+                    : '<i class="material-icons">videocam_off</i>';
             }
         });
-        
-        // Инициализация при загрузке страницы
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Conference app initialized');
+
+        // Toggle audio
+        toggleAudioBtn.addEventListener('click', () => {
+            if (localStream) {
+                isAudioEnabled = !isAudioEnabled;
+                localStream.getAudioTracks()[0].enabled = isAudioEnabled;
+                toggleAudioBtn.innerHTML = isAudioEnabled 
+                    ? '<i class="material-icons">mic</i>' 
+                    : '<i class="material-icons">mic_off</i>';
+            }
+        });
+
+        // Leave room
+        leaveBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to leave the room?')) {
+                leaveRoom();
+            }
+        });
+
+        // Cleanup and leave room
+        function leaveRoom() {
+            // Close all connections
+            Object.values(connections).forEach(conn => conn.close());
+            
+            // End all calls
+            Object.values(calls).forEach(call => call.close());
+            
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Destroy peer
+            if (peer) {
+                peer.destroy();
+            }
+            
+            // Reset UI
+            joinForm.style.display = 'block';
+            controlPanel.style.display = 'none';
+            videoContainer.innerHTML = '';
+            
+            // Clear state
+            currentRoom = null;
+            currentUser = null;
+            peer = null;
+            connections = {};
+            calls = {};
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (peer) {
+                leaveRoom();
+            }
         });
     </script>
 </body>
