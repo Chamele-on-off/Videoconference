@@ -449,11 +449,13 @@
         const userParam = urlParams.get('user');
         const nameParam = urlParams.get('name');
         const autostartParam = urlParams.get('autostart');
+        const teacherParam = urlParams.get('teacher'); // Новый параметр для имени учителя
         
         // Если есть параметры в URL, заполняем форму
         if (roomParam && userParam && nameParam) {
             usernameInput.value = nameParam;
-            roomNameInput.value = roomParam;
+            // Используем teacherParam, если он есть, иначе roomParam
+            roomNameInput.value = teacherParam || roomParam;
             
             // Показываем кнопку старта вместо автоматического подключения
             if (autostartParam === '1') {
@@ -483,12 +485,12 @@
         inviteBtn.addEventListener('click', () => {
             if (currentInvite) {
                 // Обновляем URL с параметрами приглашения
-                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(currentInvite.room)}&user=${encodeURIComponent(currentInvite.student)}&name=${encodeURIComponent(currentInvite.student)}&autostart=1`;
+                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(currentInvite.room)}&user=${encodeURIComponent(currentInvite.student)}&name=${encodeURIComponent(currentInvite.student)}&teacher=${encodeURIComponent(currentInvite.teacher)}&autostart=1`;
                 window.history.replaceState(null, null, newUrl);
                 
                 // Заполняем форму
                 usernameInput.value = currentInvite.student;
-                roomNameInput.value = currentInvite.room;
+                roomNameInput.value = currentInvite.teacher; // Используем имя учителя как room name
                 
                 // Показываем кнопку старта конференции
                 joinForm.style.display = 'none';
@@ -538,6 +540,7 @@
                 // Сохраняем данные приглашения
                 currentInvite = {
                     room: data.room,
+                    teacher: data.teacher, // Сохраняем имя учителя
                     student: data.student,
                     inviteUrl: data.inviteUrl,
                     expiresAt: data.expiresAt
@@ -572,12 +575,12 @@
                 currentUser = data.name || data.user;
                 
                 // Обновляем URL без перезагрузки страницы
-                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.room)}&user=${encodeURIComponent(data.user)}&name=${encodeURIComponent(data.name)}&autostart=1`;
+                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.room)}&user=${encodeURIComponent(data.user)}&name=${encodeURIComponent(data.name)}&teacher=${encodeURIComponent(data.teacher || data.room)}&autostart=1`;
                 window.history.replaceState(null, null, newUrl);
                 
                 // Обновляем поля формы
                 usernameInput.value = data.name || data.user;
-                roomNameInput.value = data.room;
+                roomNameInput.value = data.teacher || data.room; // Используем имя учителя или room name
                 
                 // Показываем кнопку старта конференции вместо автоматического подключения
                 joinForm.style.display = 'none';
@@ -1059,5 +1062,5 @@
             console.log('Conference app initialized');
         });
     </script>
-</body> 
+</body>
 </html>
