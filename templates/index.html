@@ -306,6 +306,37 @@
         .start-conference-btn i {
             font-size: 20px;
         }
+
+        /* Стиль для кнопки приглашения */
+        .invite-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .invite-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .invite-btn i {
+            font-size: 18px;
+        }
     </style>
     <!-- Иконки Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -349,6 +380,12 @@
         Start Conference
     </button>
 
+    <!-- Кнопка приглашения (появляется при получении приглашения) -->
+    <button class="invite-btn" id="inviteBtn" style="display: none;">
+        <i class="material-icons">person_add</i>
+        Join Conference
+    </button>
+
     <!-- Панель управления -->
     <div class="control-panel" id="controlPanel" style="display: none;">
         <button class="control-btn" id="toggleVideoBtn" title="Toggle Video">
@@ -387,6 +424,7 @@
         let connections = {};
         let calls = {};
         let inviteTimeout = null;
+        let currentInvite = null;
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -403,6 +441,7 @@
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
         const startConferenceBtn = document.getElementById('startConferenceBtn');
+        const inviteBtn = document.getElementById('inviteBtn');
         
         // Извлекаем параметры из URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -439,13 +478,45 @@
             }
             joinBtn.click();
         });
+
+        // Обработчик кнопки приглашения
+        inviteBtn.addEventListener('click', () => {
+            if (currentInvite) {
+                // Обновляем URL с параметрами приглашения
+                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(currentInvite.room)}&user=${encodeURIComponent(currentInvite.student)}&name=${encodeURIComponent(currentInvite.student)}&autostart=1`;
+                window.history.replaceState(null, null, newUrl);
+                
+                // Заполняем форму
+                usernameInput.value = currentInvite.student;
+                roomNameInput.value = currentInvite.room;
+                
+                // Показываем кнопку старта конференции
+                joinForm.style.display = 'none';
+                startConferenceBtn.style.display = 'flex';
+                inviteBtn.style.display = 'none';
+                
+                // Устанавливаем таймер на удаление приглашения через 5 минут
+                if (inviteTimeout) {
+                    clearTimeout(inviteTimeout);
+                }
+                
+                inviteTimeout = setTimeout(() => {
+                    if (!peer) { // Если пользователь не начал конференцию
+                        showNotification('Invitation expired after 5 minutes');
+                        resetInvitation();
+                    }
+                }, 5 * 60 * 1000); // 5 минут
+            }
+        });
         
         // Сброс приглашения
         function resetInvitation() {
             startConferenceBtn.style.display = 'none';
+            inviteBtn.style.display = 'none';
             joinForm.style.display = 'block';
             usernameInput.value = '';
             roomNameInput.value = '';
+            currentInvite = null;
             
             // Очищаем параметры URL без перезагрузки
             window.history.replaceState(null, null, window.location.pathname);
@@ -463,7 +534,39 @@
             const data = event.data;
             console.log('Received message:', data);
             
-            if (data.type === 'roomUpdate' || data.type === 'teacherAssignedRoom') {
+            if (data.type === 'teacherInvite') {
+                // Сохраняем данные приглашения
+                currentInvite = {
+                    room: data.room,
+                    student: data.student,
+                    inviteUrl: data.inviteUrl,
+                    expiresAt: data.expiresAt
+                };
+                
+                // Показываем кнопку приглашения
+                joinForm.style.display = 'none';
+                startConferenceBtn.style.display = 'none';
+                inviteBtn.style.display = 'flex';
+                
+                // Устанавливаем таймер на удаление приглашения
+                if (inviteTimeout) {
+                    clearTimeout(inviteTimeout);
+                }
+                
+                const timeLeft = data.expiresAt - Date.now();
+                if (timeLeft > 0) {
+                    inviteTimeout = setTimeout(() => {
+                        if (!peer) { // Если пользователь не начал конференцию
+                            showNotification('Invitation expired after 5 minutes');
+                            resetInvitation();
+                        }
+                    }, timeLeft);
+                } else {
+                    showNotification('Invitation has already expired');
+                    resetInvitation();
+                }
+            }
+            else if (data.type === 'roomUpdate' || data.type === 'teacherAssignedRoom') {
                 // Обновляем параметры комнаты (используем имя учителя из данных)
                 currentRoom = data.room;
                 currentUser = data.name || data.user;
@@ -479,6 +582,7 @@
                 // Показываем кнопку старта конференции вместо автоматического подключения
                 joinForm.style.display = 'none';
                 startConferenceBtn.style.display = 'flex';
+                inviteBtn.style.display = 'none';
                 
                 // Устанавливаем таймер на удаление приглашения через 5 минут
                 if (inviteTimeout) {
@@ -532,6 +636,7 @@
                 // Update UI
                 joinForm.style.display = 'none';
                 startConferenceBtn.style.display = 'none';
+                inviteBtn.style.display = 'none';
                 controlPanel.style.display = 'flex';
                 
                 // Get list of other participants and connect to them
@@ -561,6 +666,7 @@
                 // Показываем форму снова
                 joinForm.style.display = 'block';
                 startConferenceBtn.style.display = 'none';
+                inviteBtn.style.display = 'none';
                 
                 // Отправляем сообщение об ошибке родительскому окну
                 if (window.parent !== window) {
@@ -910,6 +1016,7 @@
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
             startConferenceBtn.style.display = 'none';
+            inviteBtn.style.display = 'none';
             videoContainer.innerHTML = '';
             
             currentRoom = null;
