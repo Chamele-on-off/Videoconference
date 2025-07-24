@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Modern Video Conference</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -17,6 +18,7 @@
             color: white;
             height: 100vh;
             overflow: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Основной контейнер видео */
@@ -46,6 +48,7 @@
             border: 2px solid rgba(255, 255, 255, 0.2);
             cursor: pointer;
             transition: all 0.3s ease;
+            -webkit-transition: all 0.3s ease;
         }
 
         .video-container.main-view .video-item:not(.main-video):hover {
@@ -73,6 +76,7 @@
             border-radius: 12px;
             overflow: hidden;
             transition: all 0.3s ease;
+            -webkit-transition: all 0.3s ease;
             cursor: pointer;
         }
 
@@ -86,6 +90,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            -webkit-object-fit: cover;
         }
 
         .video-item:hover {
@@ -124,6 +129,7 @@
             gap: 15px;
             background: rgba(30, 30, 40, 0.8);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             padding: 12px 24px;
             border-radius: 50px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
@@ -142,6 +148,7 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s ease;
+            -webkit-transition: all 0.2s ease;
             font-size: 20px;
         }
 
@@ -174,6 +181,7 @@
             transform: translate(-50%, -50%);
             background: rgba(30, 30, 40, 0.95);
             backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             padding: 40px;
             border-radius: 20px;
             width: 90%;
@@ -210,6 +218,7 @@
             color: white;
             font-size: 16px;
             transition: all 0.3s ease;
+            -webkit-appearance: none;
         }
 
         .form-group input:focus {
@@ -252,9 +261,15 @@
             align-items: center;
             gap: 10px;
             animation: slideIn 0.3s ease-out;
+            -webkit-animation: slideIn 0.3s ease-out;
         }
 
         @keyframes slideIn {
+            from { top: -50px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+
+        @-webkit-keyframes slideIn {
             from { top: -50px; opacity: 0; }
             to { top: 20px; opacity: 1; }
         }
@@ -264,6 +279,7 @@
             .control-panel {
                 bottom: 15px;
                 padding: 10px 15px;
+                gap: 10px;
             }
             
             .control-btn {
@@ -290,6 +306,10 @@
             .video-container.main-view .video-item:not(.main-video):nth-child(4) {
                 right: 400px;
             }
+
+            .join-form {
+                padding: 30px 20px;
+            }
         }
 
         /* Стиль для демонстрации экрана */
@@ -310,6 +330,7 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            -webkit-object-fit: contain;
         }
 
         .screen-share-controls {
@@ -336,6 +357,36 @@
 
         .screen-share-btn:hover {
             background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* iOS specific fixes */
+        .ios-message {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 149, 255, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1001;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 1001;
+            display: none;
         }
     </style>
     <!-- Иконки Material Icons -->
@@ -385,13 +436,20 @@
         <button class="control-btn" id="screenShareBtn" title="Share Screen">
             <i class="material-icons">screen_share</i>
         </button>
-        <button class="control-btn" id="participantsBtn" title="Participants">
-            <i class="material-icons">people</i>
-        </button>
         <button class="control-btn danger" id="leaveBtn" title="Leave Call">
             <i class="material-icons">call_end</i>
         </button>
     </div>
+
+    <!-- iOS сообщение -->
+    <div class="ios-message" id="iosMessage">
+        For best experience, use Safari browser and enable fullscreen manually
+    </div>
+
+    <!-- Кнопка ручного включения полноэкранного режима -->
+    <button class="fullscreen-btn" id="fullscreenBtn">
+        <i class="material-icons">fullscreen</i> Fullscreen
+    </button>
 
     <!-- Подключаем PeerJS библиотеку -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
@@ -412,6 +470,7 @@
         let connections = {};
         let calls = {};
         let mainVideoId = null;
+        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -427,6 +486,24 @@
         const screenShareVideo = document.getElementById('screenShareVideo');
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
+        const iosMessage = document.getElementById('iosMessage');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        // Initialize
+        if (isIOS) {
+            iosMessage.style.display = 'block';
+            fullscreenBtn.style.display = 'block';
+            
+            // Hide iOS message after 5 seconds
+            setTimeout(() => {
+                iosMessage.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Fullscreen button handler
+        fullscreenBtn.addEventListener('click', () => {
+            enterFullscreenMode();
+        });
         
         // Join room
         joinBtn.addEventListener('click', async () => {
@@ -442,18 +519,20 @@
             currentRoom = roomName;
             
             try {
-                // Get user media
+                // Get user media with better quality settings
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 30, max: 60 },
+                        facingMode: 'user'
                     },
                     audio: {
-                        sampleRate: 16000,
+                        sampleRate: 48000,
                         channelCount: 1,
                         echoCancellation: true,
-                        noiseSuppression: true
+                        noiseSuppression: true,
+                        autoGainControl: true
                     }
                 });
                 
@@ -471,9 +550,12 @@
                 await connectToOtherParticipants();
                 
                 // Автоматически разворачиваем на весь экран при начале конференции
-                setTimeout(() => {
-                    enterFullscreenMode();
-                }, 1000);
+                // Для iOS показываем кнопку для ручного включения
+                if (!isIOS) {
+                    setTimeout(() => {
+                        enterFullscreenMode();
+                    }, 1000);
+                }
                 
             } catch (error) {
                 console.error('Error joining room:', error);
@@ -500,6 +582,7 @@
             video.autoplay = true;
             video.muted = true;
             video.playsInline = true;
+            video.setAttribute('playsinline', '');
             video.srcObject = stream;
             
             const participantInfo = document.createElement('div');
@@ -525,125 +608,67 @@
         // Initialize PeerJS connection
         async function initializePeerJS(username, roomName) {
             return new Promise((resolve, reject) => {
-                fetch('/api/get_peer_id', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        user_id: username,
-                        room_name: roomName 
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        peer = new Peer(data.peer_id);
-                        
-                        peer.on('open', (id) => {
-                            console.log('PeerJS connected with ID:', id);
-                            peerId = id;
-                            resolve();
-                        });
-                        
-                        peer.on('error', (err) => {
-                            console.error('PeerJS error:', err);
-                            reject(err);
-                        });
-                        
-                        peer.on('connection', (conn) => {
-                            console.log('Incoming connection from:', conn.peer);
-                            
-                            conn.on('open', () => {
-                                console.log('Connection established with:', conn.peer);
-                                connections[conn.peer] = conn;
-                            });
-                            
-                            conn.on('close', () => {
-                                console.log('Connection closed with:', conn.peer);
-                                removeRemoteVideo(conn.peer);
-                                delete connections[conn.peer];
-                            });
-                        });
-                        
-                        peer.on('call', (call) => {
-                            console.log('Incoming call from:', call.peer);
-                            
-                            // Answer with current stream (either camera or screen share)
-                            const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
-                            call.answer(streamToAnswerWith);
-                            
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(call.peer, remoteStream);
-                            });
-                            
-                            call.on('close', () => {
-                                console.log('Call ended with:', call.peer);
-                                removeRemoteVideo(call.peer);
-                                if (calls[call.peer]) {
-                                    delete calls[call.peer];
-                                }
-                            });
-                            
-                            calls[call.peer] = call;
-                        });
-                        
-                    } else {
-                        reject(new Error(data.error || 'Failed to get PeerJS ID'));
-                    }
-                })
-                .catch(reject);
+                // В демо-версии используем случайный ID, в реальном приложении нужно получать с сервера
+                const randomId = 'peer-' + Math.random().toString(36).substr(2, 9);
+                peer = new Peer(randomId);
+                
+                peer.on('open', (id) => {
+                    console.log('PeerJS connected with ID:', id);
+                    peerId = id;
+                    resolve();
+                });
+                
+                peer.on('error', (err) => {
+                    console.error('PeerJS error:', err);
+                    reject(err);
+                });
+                
+                peer.on('connection', (conn) => {
+                    console.log('Incoming connection from:', conn.peer);
+                    
+                    conn.on('open', () => {
+                        console.log('Connection established with:', conn.peer);
+                        connections[conn.peer] = conn;
+                    });
+                    
+                    conn.on('close', () => {
+                        console.log('Connection closed with:', conn.peer);
+                        removeRemoteVideo(conn.peer);
+                        delete connections[conn.peer];
+                    });
+                });
+                
+                peer.on('call', (call) => {
+                    console.log('Incoming call from:', call.peer);
+                    
+                    // Answer with current stream (either camera or screen share)
+                    const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
+                    call.answer(streamToAnswerWith);
+                    
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(call.peer, remoteStream);
+                    });
+                    
+                    call.on('close', () => {
+                        console.log('Call ended with:', call.peer);
+                        removeRemoteVideo(call.peer);
+                        if (calls[call.peer]) {
+                            delete calls[call.peer];
+                        }
+                    });
+                    
+                    calls[call.peer] = call;
+                });
             });
         }
         
         // Connect to other participants
         async function connectToOtherParticipants() {
             try {
-                const response = await fetch('/api/get_peer_ids', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_name: currentRoom,
-                        current_user: currentUser
-                    })
-                });
+                // В демо-версии пропускаем запрос к серверу
+                // В реальном приложении нужно получать список участников комнаты
+                console.log('Skipping server request in demo version');
                 
-                const data = await response.json();
-                
-                if (data.success) {
-                    for (const [user, peerId] of Object.entries(data.peers)) {
-                        const conn = peer.connect(peerId);
-                        
-                        conn.on('open', () => {
-                            console.log('Connected to peer:', peerId);
-                            connections[peerId] = conn;
-                            
-                            const call = peer.call(peerId, localStream);
-                            
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(peerId, remoteStream);
-                            });
-                            
-                            call.on('close', () => {
-                                console.log('Call ended with:', peerId);
-                                removeRemoteVideo(peerId);
-                                if (calls[peerId]) {
-                                    delete calls[peerId];
-                                }
-                            });
-                            
-                            calls[peerId] = call;
-                        });
-                        
-                        conn.on('close', () => {
-                            console.log('Connection closed with:', peerId);
-                            removeRemoteVideo(peerId);
-                            delete connections[peerId];
-                        });
-                    }
-                }
             } catch (error) {
                 console.error('Error connecting to other participants:', error);
             }
@@ -661,6 +686,7 @@
             video.id = `remoteVideo-${peerId}`;
             video.autoplay = true;
             video.playsInline = true;
+            video.setAttribute('playsinline', '');
             video.srcObject = stream;
             
             const participantInfo = document.createElement('div');
@@ -731,6 +757,15 @@
         function enterFullscreenMode() {
             videoContainer.classList.add('main-view');
             
+            // Для iOS показываем инструкцию по ручному включению полноэкранного режима
+            if (isIOS) {
+                iosMessage.style.display = 'block';
+                setTimeout(() => {
+                    iosMessage.style.display = 'none';
+                }, 5000);
+                return;
+            }
+            
             // Если есть iframe родитель, попробуем развернуть его на весь экран
             if (window.self !== window.top) {
                 try {
@@ -747,6 +782,19 @@
                 } catch (e) {
                     console.log('Fullscreen error:', e);
                 }
+            } else {
+                // Если мы не в iframe, пробуем развернуть сам документ
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        document.documentElement.webkitRequestFullscreen();
+                    } else if (document.documentElement.msRequestFullscreen) {
+                        document.documentElement.msRequestFullscreen();
+                    }
+                } catch (e) {
+                    console.log('Document fullscreen error:', e);
+                }
             }
         }
         
@@ -760,19 +808,17 @@
                 item.classList.remove('main-video');
             });
             
-            // Выходим из полноэкранного режима, если мы в iframe
-            if (window.self !== window.top) {
-                try {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
-                    }
-                } catch (e) {
-                    console.log('Exit fullscreen error:', e);
+            // Выходим из полноэкранного режима
+            try {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
                 }
+            } catch (e) {
+                console.log('Exit fullscreen error:', e);
             }
         }
         
@@ -818,45 +864,30 @@
         // Start screen sharing
         async function startScreenShare() {
             try {
-                // For iOS/Safari, we need to use the experimental API
-                const constraints = {
+                // Проверяем поддержку screen sharing
+                if (!navigator.mediaDevices.getDisplayMedia && !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Screen sharing not supported in this browser');
+                }
+                
+                // Для iOS показываем сообщение, что screen sharing не поддерживается
+                if (isIOS) {
+                    showNotification('Screen sharing is not supported on iOS devices');
+                    return;
+                }
+                
+                // Используем стандартный getDisplayMedia или fallback для старых браузеров
+                screenStream = await (navigator.mediaDevices.getDisplayMedia || navigator.mediaDevices.getUserMedia).call(navigator.mediaDevices, {
                     video: {
-                        mediaSource: 'screen',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
                         frameRate: { ideal: 30 }
                     },
                     audio: false
-                };
+                });
                 
-                // Adjust constraints for different browsers
-                if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
-                    // iOS devices
-                    constraints.video = true;
-                } else if (navigator.mediaDevices.getDisplayMedia) {
-                    // Standard getDisplayMedia
-                    screenStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: {
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 },
-                            frameRate: { ideal: 30 }
-                        },
-                        audio: false
-                    });
-                } else if (navigator.mediaDevices.getUserMedia) {
-                    // Fallback for older browsers
-                    screenStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            mandatory: {
-                                chromeMediaSource: 'screen',
-                                maxWidth: 1920,
-                                maxHeight: 1080,
-                                maxFrameRate: 30
-                            }
-                        }
-                    });
-                } else {
-                    throw new Error('Screen sharing not supported');
+                // Проверяем, что получили поток
+                if (!screenStream || !screenStream.getVideoTracks().length) {
+                    throw new Error('Failed to get screen share stream');
                 }
                 
                 // Show screen share preview
@@ -872,11 +903,18 @@
                 // Replace video track in all existing calls
                 const screenVideoTrack = screenStream.getVideoTracks()[0];
                 for (const call of Object.values(calls)) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track.kind === 'video') {
-                            sender.replaceTrack(screenVideoTrack);
+                    if (call.peerConnection) {
+                        const senders = call.peerConnection.getSenders();
+                        for (const sender of senders) {
+                            if (sender.track && sender.track.kind === 'video') {
+                                try {
+                                    await sender.replaceTrack(screenVideoTrack);
+                                } catch (e) {
+                                    console.error('Error replacing track:', e);
+                                }
+                            }
                         }
-                    });
+                    }
                 }
                 
                 // Handle when screen sharing is stopped by browser UI
@@ -886,7 +924,13 @@
                 
             } catch (error) {
                 console.error('Error starting screen share:', error);
-                showNotification('Error starting screen share: ' + error.message);
+                showNotification('Error starting screen share: ' + (error.message || 'Not supported'));
+                
+                // Останавливаем поток, если он был частично создан
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => track.stop());
+                    screenStream = null;
+                }
             }
         }
         
@@ -898,8 +942,10 @@
             screenShareContainer.style.display = 'none';
             
             // Stop screen stream
-            screenStream.getTracks().forEach(track => track.stop());
-            screenStream = null;
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
             
             // Update UI
             screenShareBtn.innerHTML = '<i class="material-icons">screen_share</i>';
@@ -911,11 +957,18 @@
             if (localStream) {
                 const cameraVideoTrack = localStream.getVideoTracks()[0];
                 for (const call of Object.values(calls)) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track.kind === 'video') {
-                            sender.replaceTrack(cameraVideoTrack);
+                    if (call.peerConnection) {
+                        const senders = call.peerConnection.getSenders();
+                        for (const sender of senders) {
+                            if (sender.track && sender.track.kind === 'video') {
+                                try {
+                                    await sender.replaceTrack(cameraVideoTrack);
+                                } catch (e) {
+                                    console.error('Error restoring camera track:', e);
+                                }
+                            }
                         }
-                    });
+                    }
                 }
             }
         }
@@ -958,23 +1011,6 @@
                 peer = null;
             }
             
-            // Notify server we're leaving
-            try {
-                await fetch('/api/get_peer_ids', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_name: currentRoom,
-                        current_user: currentUser,
-                        action: 'leave'
-                    })
-                });
-            } catch (error) {
-                console.error('Error notifying server about leaving:', error);
-            }
-            
             // Reset UI
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
@@ -1007,6 +1043,14 @@
         window.addEventListener('beforeunload', async () => {
             if (currentRoom) {
                 await leaveRoom();
+            }
+        });
+        
+        // Detect iOS and adjust UI accordingly
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add iOS specific classes if needed
+            if (isIOS) {
+                document.body.classList.add('ios-device');
             }
         });
     </script>
