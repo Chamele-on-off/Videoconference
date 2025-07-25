@@ -31,41 +31,6 @@
             padding: 10px;
         }
 
-        /* Главное видео (на весь экран) */
-        .video-container.main-view {
-            grid-template-columns: 1fr;
-        }
-
-        .video-container.main-view .video-item:not(.main-video) {
-            position: absolute;
-            width: 200px;
-            height: 150px;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .video-container.main-view .video-item:not(.main-video):hover {
-            transform: scale(1.05);
-            border-color: rgba(0, 150, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
-        }
-
-        .video-container.main-view .video-item:not(.main-video):nth-child(2) {
-            right: 240px;
-        }
-
-        .video-container.main-view .video-item:not(.main-video):nth-child(3) {
-            right: 460px;
-        }
-
-        .video-container.main-view .video-item:not(.main-video):nth-child(4) {
-            right: 680px;
-        }
-
         /* Видео участников */
         .video-item {
             position: relative;
@@ -73,13 +38,6 @@
             border-radius: 12px;
             overflow: hidden;
             transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .video-item.main-video {
-            grid-column: 1 / -1;
-            grid-row: 1 / -1;
-            z-index: 5;
         }
 
         .video-item video {
@@ -271,25 +229,6 @@
                 height: 45px;
                 font-size: 18px;
             }
-
-            .video-container.main-view .video-item:not(.main-video) {
-                width: 120px;
-                height: 90px;
-                bottom: 10px;
-                right: 10px;
-            }
-
-            .video-container.main-view .video-item:not(.main-video):nth-child(2) {
-                right: 140px;
-            }
-
-            .video-container.main-view .video-item:not(.main-video):nth-child(3) {
-                right: 270px;
-            }
-
-            .video-container.main-view .video-item:not(.main-video):nth-child(4) {
-                right: 400px;
-            }
         }
 
         /* Стиль для демонстрации экрана */
@@ -336,21 +275,6 @@
 
         .screen-share-btn:hover {
             background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* iOS specific styles */
-        .ios-fullscreen-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 149, 255, 0.8);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            border: none;
-            z-index: 1001;
-            display: none;
-            cursor: pointer;
         }
     </style>
     <!-- Иконки Material Icons -->
@@ -405,11 +329,6 @@
         </button>
     </div>
 
-    <!-- Кнопка полноэкранного режима для iOS -->
-    <button class="ios-fullscreen-btn" id="iosFullscreenBtn">
-        <i class="material-icons">fullscreen</i> Fullscreen
-    </button>
-
     <!-- Подключаем PeerJS библиотеку -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
@@ -428,8 +347,6 @@
         let peerId = null;
         let connections = {};
         let calls = {};
-        let mainVideoId = null;
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -445,17 +362,8 @@
         const screenShareVideo = document.getElementById('screenShareVideo');
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
-        const iosFullscreenBtn = document.getElementById('iosFullscreenBtn');
         
-        // Initialize
-        if (isIOS) {
-            iosFullscreenBtn.style.display = 'block';
-            iosFullscreenBtn.addEventListener('click', () => {
-                enterFullscreenMode();
-            });
-        }
-        
-        // Join room
+        // Join room handler
         joinBtn.addEventListener('click', async () => {
             const username = usernameInput.value.trim();
             const roomName = roomNameInput.value.trim();
@@ -488,7 +396,7 @@
                 addLocalVideo(localStream);
                 
                 // Initialize PeerJS
-                await initializePeerJS(username, roomName);
+                await initializePeerJS(username);
                 
                 // Update UI
                 joinForm.style.display = 'none';
@@ -496,11 +404,6 @@
                 
                 // Get list of other participants and connect to them
                 await connectToOtherParticipants();
-                
-                // Автоматически разворачиваем на весь экран при начале конференции
-                setTimeout(() => {
-                    enterFullscreenMode();
-                }, 1000);
                 
             } catch (error) {
                 console.error('Error joining room:', error);
@@ -513,11 +416,20 @@
                     peer.destroy();
                     peer = null;
                 }
+                
+                // Show form again
+                joinForm.style.display = 'block';
             }
         });
         
         // Add local video
         function addLocalVideo(stream) {
+            // Remove previous local video if exists
+            const existingLocalVideo = document.getElementById('localVideoItem');
+            if (existingLocalVideo) {
+                existingLocalVideo.remove();
+            }
+            
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item local-video';
             videoItem.id = 'localVideoItem';
@@ -542,22 +454,28 @@
             
             videoTrack = stream.getVideoTracks()[0];
             audioTrack = stream.getAudioTracks()[0];
-            
-            // Добавляем обработчик клика для выбора главного видео
-            videoItem.addEventListener('click', () => {
-                setMainVideo('localVideoItem');
-            });
         }
         
         // Initialize PeerJS connection
-        async function initializePeerJS(username, roomName) {
+        async function initializePeerJS(username) {
             return new Promise((resolve, reject) => {
-                // Генерируем случайный peer ID
-                peerId = `peer-${Math.random().toString(36).substr(2, 9)}`;
-                peer = new Peer(peerId);
+                // Use random ID for demo
+                const randomId = 'peer-' + Math.random().toString(36).substr(2, 9);
+                
+                peer = new Peer(randomId, {
+                    debug: 3,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' }
+                        ]
+                    }
+                });
                 
                 peer.on('open', (id) => {
                     console.log('PeerJS connected with ID:', id);
+                    peerId = id;
                     resolve();
                 });
                 
@@ -572,6 +490,20 @@
                     conn.on('open', () => {
                         console.log('Connection established with:', conn.peer);
                         connections[conn.peer] = conn;
+                        
+                        // Send user info
+                        conn.send({
+                            type: 'userInfo',
+                            username: currentUser
+                        });
+                    });
+                    
+                    conn.on('data', (data) => {
+                        console.log('Received data from peer:', data);
+                        if (data.type === 'userInfo') {
+                            // Update participant name
+                            updateParticipantName(conn.peer, data.username);
+                        }
                     });
                     
                     conn.on('close', () => {
@@ -607,13 +539,22 @@
         
         // Connect to other participants
         async function connectToOtherParticipants() {
-            // В демо-версии просто подключаемся к комнате без запроса к серверу
-            console.log('Connecting to room:', currentRoom);
+            try {
+                // In a real app, this would request the participant list from a server
+                console.log('Waiting for other participants to connect...');
+            } catch (error) {
+                console.error('Error connecting to other participants:', error);
+            }
         }
         
         // Add remote video
         function addRemoteVideo(peerId, stream) {
-            if (document.getElementById(`remoteVideo-${peerId}`)) return;
+            if (document.getElementById(`remoteVideo-${peerId}`)) {
+                // Update existing stream
+                const existingVideo = document.getElementById(`remoteVideo-${peerId}`);
+                existingVideo.srcObject = stream;
+                return;
+            }
             
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item';
@@ -635,15 +576,19 @@
             videoItem.appendChild(video);
             videoItem.appendChild(participantInfo);
             videoContainer.appendChild(videoItem);
-            
-            // Добавляем обработчик клика для выбора главного видео
-            videoItem.addEventListener('click', () => {
-                setMainVideo(`videoItem-${peerId}`);
-            });
-            
-            // Если это первый участник, делаем его видео главным
-            if (!mainVideoId && peerId) {
-                setMainVideo(`videoItem-${peerId}`);
+        }
+        
+        // Update participant name
+        function updateParticipantName(peerId, username) {
+            const videoItem = document.getElementById(`videoItem-${peerId}`);
+            if (videoItem) {
+                const participantInfo = videoItem.querySelector('.participant-info');
+                if (participantInfo) {
+                    participantInfo.innerHTML = `
+                        <div class="participant-status"></div>
+                        <span>${username}</span>
+                    `;
+                }
             }
         }
         
@@ -651,104 +596,7 @@
         function removeRemoteVideo(peerId) {
             const videoItem = document.getElementById(`videoItem-${peerId}`);
             if (videoItem) {
-                // Если удаляем главное видео, выбираем новое главное
-                if (videoItem.id === mainVideoId) {
-                    const remainingVideos = document.querySelectorAll('.video-item:not(.main-video)');
-                    if (remainingVideos.length > 0) {
-                        setMainVideo(remainingVideos[0].id);
-                    } else {
-                        exitFullscreenMode();
-                    }
-                }
                 videoItem.remove();
-            }
-        }
-        
-        // Set main video
-        function setMainVideo(videoItemId) {
-            // Если уже выбрано это видео, выходим из полноэкранного режима
-            if (mainVideoId === videoItemId) {
-                exitFullscreenMode();
-                return;
-            }
-            
-            // Убираем предыдущее главное видео
-            if (mainVideoId) {
-                const prevMainVideo = document.getElementById(mainVideoId);
-                if (prevMainVideo) {
-                    prevMainVideo.classList.remove('main-video');
-                }
-            }
-            
-            // Устанавливаем новое главное видео
-            const newMainVideo = document.getElementById(videoItemId);
-            if (newMainVideo) {
-                newMainVideo.classList.add('main-video');
-                mainVideoId = videoItemId;
-                enterFullscreenMode();
-            }
-        }
-        
-        // Enter fullscreen mode
-        function enterFullscreenMode() {
-            videoContainer.classList.add('main-view');
-            
-            // Для iOS используем альтернативный подход
-            if (isIOS) {
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-                return;
-            }
-            
-            // Если есть iframe родитель, попробуем развернуть его на весь экран
-            if (window.self !== window.top) {
-                try {
-                    const iframe = window.frameElement;
-                    if (iframe) {
-                        if (iframe.requestFullscreen) {
-                            iframe.requestFullscreen();
-                        } else if (iframe.webkitRequestFullscreen) {
-                            iframe.webkitRequestFullscreen();
-                        } else if (iframe.msRequestFullscreen) {
-                            iframe.msRequestFullscreen();
-                        }
-                    }
-                } catch (e) {
-                    console.log('Fullscreen error:', e);
-                }
-            }
-        }
-        
-        // Exit fullscreen mode
-        function exitFullscreenMode() {
-            videoContainer.classList.remove('main-view');
-            mainVideoId = null;
-            
-            // Для iOS восстанавливаем стандартное поведение
-            if (isIOS) {
-                document.documentElement.style.overflow = '';
-                document.body.style.overflow = '';
-                return;
-            }
-            
-            // Убираем класс main-video у всех элементов
-            document.querySelectorAll('.video-item').forEach(item => {
-                item.classList.remove('main-video');
-            });
-            
-            // Выходим из полноэкранного режима, если мы в iframe
-            if (window.self !== window.top) {
-                try {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
-                    }
-                } catch (e) {
-                    console.log('Exit fullscreen error:', e);
-                }
             }
         }
         
@@ -794,18 +642,10 @@
         // Start screen sharing
         async function startScreenShare() {
             try {
-                // Проверяем поддержку screen sharing
-                if (!navigator.mediaDevices.getDisplayMedia && !navigator.mediaDevices.getUserMedia) {
+                if (!navigator.mediaDevices.getDisplayMedia) {
                     throw new Error('Screen sharing not supported in this browser');
                 }
                 
-                // Для iOS показываем сообщение, что screen sharing не поддерживается
-                if (isIOS) {
-                    showNotification('Screen sharing is not supported on iOS devices');
-                    return;
-                }
-                
-                // Используем стандартный getDisplayMedia
                 screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
                         width: { ideal: 1920 },
@@ -814,11 +654,6 @@
                     },
                     audio: false
                 });
-                
-                // Проверяем, что получили поток
-                if (!screenStream || !screenStream.getVideoTracks().length) {
-                    throw new Error('Failed to get screen share stream');
-                }
                 
                 // Show screen share preview
                 screenShareVideo.srcObject = screenStream;
@@ -833,18 +668,11 @@
                 // Replace video track in all existing calls
                 const screenVideoTrack = screenStream.getVideoTracks()[0];
                 for (const call of Object.values(calls)) {
-                    if (call.peerConnection) {
-                        const senders = call.peerConnection.getSenders();
-                        for (const sender of senders) {
-                            if (sender.track && sender.track.kind === 'video') {
-                                try {
-                                    await sender.replaceTrack(screenVideoTrack);
-                                } catch (e) {
-                                    console.error('Error replacing track:', e);
-                                }
-                            }
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track.kind === 'video') {
+                            sender.replaceTrack(screenVideoTrack);
                         }
-                    }
+                    });
                 }
                 
                 // Handle when screen sharing is stopped by browser UI
@@ -854,13 +682,7 @@
                 
             } catch (error) {
                 console.error('Error starting screen share:', error);
-                showNotification('Error starting screen share: ' + (error.message || 'Not supported'));
-                
-                // Останавливаем поток, если он был частично создан
-                if (screenStream) {
-                    screenStream.getTracks().forEach(track => track.stop());
-                    screenStream = null;
-                }
+                showNotification('Error starting screen share: ' + error.message);
             }
         }
         
@@ -872,10 +694,8 @@
             screenShareContainer.style.display = 'none';
             
             // Stop screen stream
-            if (screenStream) {
-                screenStream.getTracks().forEach(track => track.stop());
-                screenStream = null;
-            }
+            screenStream.getTracks().forEach(track => track.stop());
+            screenStream = null;
             
             // Update UI
             screenShareBtn.innerHTML = '<i class="material-icons">screen_share</i>';
@@ -887,18 +707,11 @@
             if (localStream) {
                 const cameraVideoTrack = localStream.getVideoTracks()[0];
                 for (const call of Object.values(calls)) {
-                    if (call.peerConnection) {
-                        const senders = call.peerConnection.getSenders();
-                        for (const sender of senders) {
-                            if (sender.track && sender.track.kind === 'video') {
-                                try {
-                                    await sender.replaceTrack(cameraVideoTrack);
-                                } catch (e) {
-                                    console.error('Error restoring camera track:', e);
-                                }
-                            }
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track.kind === 'video') {
+                            sender.replaceTrack(cameraVideoTrack);
                         }
-                    }
+                    });
                 }
             }
         }
@@ -945,12 +758,10 @@
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
             videoContainer.innerHTML = '';
-            exitFullscreenMode();
             
             currentRoom = null;
             currentUser = null;
             peerId = null;
-            mainVideoId = null;
         }
         
         // Show notification
@@ -974,6 +785,11 @@
             if (currentRoom) {
                 await leaveRoom();
             }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Conference app initialized');
         });
     </script>
 </body>
