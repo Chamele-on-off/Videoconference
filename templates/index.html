@@ -1,921 +1,1012 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Учитель - Цифровой аватар</title>
+    <title>Modern Video Conference</title>
     <style>
         * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
-        
+
         body {
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-            grid-column: 1 / -1;
-        }
-        
-        .panel {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            background: #f9f9f9;
-        }
-        
-        .panel-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #2c3e50;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 8px;
-        }
-        
-        #video-container {
-            grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .video-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .video-title {
-            font-weight: bold;
-            text-align: center;
-        }
-        
-        #avatar-canvas {
-            width: 100%;
-            height: 400px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            image-rendering: crisp-edges;
-        }
-        
-        #conference-iframe {
-            width: 100%;
-            height: 400px;
-            border: none;
-            border-radius: 4px;
-            background: #f0f0f0;
-        }
-        
-        #controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        select, button, input, textarea {
-            padding: 10px 15px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-        
-        select {
-            flex-grow: 1;
-            min-width: 200px;
-        }
-        
-        textarea {
-            width: 100%;
-            min-height: 100px;
-            resize: vertical;
-        }
-        
-        button {
-            background-color: #3498db;
+            background: #0f0f12;
             color: white;
-            border: none;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Основной контейнер видео */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: #000;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* Главное видео (на весь экран) */
+        .video-container.main-view {
+            grid-template-columns: 1fr;
+        }
+
+        .video-container.main-view .video-item:not(.main-video) {
+            position: absolute;
+            width: 200px;
+            height: 150px;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10;
+            border: 2px solid rgba(255, 255, 255, 0.2);
             cursor: pointer;
-            transition: background-color 0.3s;
-            white-space: nowrap;
+            transition: all 0.3s ease;
         }
-        
-        button:hover {
-            background-color: #2980b9;
+
+        .video-container.main-view .video-item:not(.main-video):hover {
+            transform: scale(1.05);
+            border-color: rgba(0, 150, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
         }
-        
-        button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
+
+        .video-container.main-view .video-item:not(.main-video):nth-child(2) {
+            right: 240px;
         }
-        
-        button.danger {
-            background-color: #e74c3c;
+
+        .video-container.main-view .video-item:not(.main-video):nth-child(3) {
+            right: 460px;
         }
-        
-        button.success {
-            background-color: #2ecc71;
+
+        .video-container.main-view .video-item:not(.main-video):nth-child(4) {
+            right: 680px;
         }
-        
-        #lesson-content {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 4px;
-            border-left: 4px solid #3498db;
-            min-height: 100px;
-            overflow-y: auto;
-            max-height: 300px;
+
+        /* Видео участников */
+        .video-item {
+            position: relative;
+            background: #1a1a1f;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
-        
-        #log {
-            height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            font-family: monospace;
+
+        .video-item.main-video {
             grid-column: 1 / -1;
+            grid-row: 1 / -1;
+            z-index: 5;
         }
-        
-        .log-entry {
-            margin-bottom: 5px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #eee;
+
+        .video-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
-        
-        .log-info {
-            color: #2c3e50;
+
+        .video-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
         }
-        
-        .log-error {
-            color: #e74c3c;
-        }
-        
-        .log-success {
-            color: #27ae60;
-        }
-        
-        .answer {
-            margin-top: 15px;
-            padding: 10px;
-            background: #e8f4fc;
-            border-radius: 4px;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-offline {
-            background-color: #e74c3c;
-        }
-        
-        .status-online {
-            background-color: #2ecc71;
-        }
-        
-        .status-connecting {
-            background-color: #f39c12;
-        }
-        
-        #participants-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        #participants-list li {
-            padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+
+        /* Информация о участнике */
+        .participant-info {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
             display: flex;
             align-items: center;
+            gap: 8px;
         }
-        
-        .control-group {
+
+        .participant-status {
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+        }
+
+        /* Панель управления */
+        .control-panel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 15px;
+            background: rgba(30, 30, 40, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 100;
         }
-        
-        #upload-area {
-            border: 2px dashed #ccc;
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px;
-            margin-bottom: 15px;
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 20px;
         }
-        
-        #upload-area:hover {
-            border-color: #3498db;
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
         }
-        
+
+        .control-btn.active {
+            background: #0095ff;
+        }
+
+        .control-btn.danger {
+            background: #ff3b30;
+        }
+
+        .control-btn.danger:hover {
+            background: #ff5a52;
+        }
+
+        .control-btn i {
+            pointer-events: none;
+        }
+
+        /* Форма входа */
+        .join-form {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 30, 40, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .join-form h2 {
+            margin-bottom: 30px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #0095ff;
+            background: rgba(0, 149, 255, 0.1);
+        }
+
+        .join-btn {
+            width: 100%;
+            padding: 15px;
+            background: #0095ff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .join-btn:hover {
+            background: #007acc;
+            transform: translateY(-2px);
+        }
+
+        /* Уведомления */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 149, 255, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { top: -50px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+
+        /* Адаптивность */
         @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
+            .control-panel {
+                bottom: 15px;
+                padding: 10px 15px;
             }
             
-            #video-container {
-                grid-template-columns: 1fr;
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
             }
-            
-            #avatar-canvas, #conference-iframe {
-                height: 300px;
+
+            .video-container.main-view .video-item:not(.main-video) {
+                width: 120px;
+                height: 90px;
+                bottom: 10px;
+                right: 10px;
             }
+
+            .video-container.main-view .video-item:not(.main-video):nth-child(2) {
+                right: 140px;
+            }
+
+            .video-container.main-view .video-item:not(.main-video):nth-child(3) {
+                right: 270px;
+            }
+
+            .video-container.main-view .video-item:not(.main-video):nth-child(4) {
+                right: 400px;
+            }
+        }
+
+        /* Стиль для демонстрации экрана */
+        .screen-share-item {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 90;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen-share-item video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .screen-share-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 91;
+            display: flex;
+            gap: 10px;
+        }
+
+        .screen-share-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .screen-share-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
+    <!-- Иконки Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <h1>AI Учитель - Цифровой аватар</h1>
-        
-        <div class="panel">
-            <div class="panel-title">Управление уроками</div>
-            <div id="upload-area">
-                Перетащите файл урока сюда<br>или кликните для выбора
-                <input type="file" id="lesson-upload" accept=".json" style="display: none;">
-            </div>
-            <div class="control-group">
-                <div id="controls">
-                    <button id="save-lessons">Сохранить уроки</button>
-                    <button id="load-lessons">Загрузить уроки</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title">Управление уроком</div>
-            <div class="control-group">
-                <select id="lesson-select">
-                    <option value="">-- Выберите урок --</option>
-                </select>
-                <input type="text" id="room-name" placeholder="Название комнаты (например: math-lesson-1)">
-                <div id="controls">
-                    <button id="start-btn">Начать урок</button>
-                    <button id="stop-btn" disabled>Остановить</button>
-                    <button id="connect-btn" class="success">Подключиться</button>
-                    <button id="disconnect-btn" class="danger" disabled>Отключиться</button>
-                </div>
-            </div>
-            <div id="lesson-content"></div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title">Состояние системы</div>
-            <div>
-                <p><span class="status-indicator status-offline" id="ai-status"></span> 
-                   <span id="status-text">AI Учитель отключен</span></p>
-                <p><span class="status-indicator status-offline" id="conference-status"></span> 
-                   <span id="conference-status-text">Нет подключения к конференции</span></p>
-            </div>
-            <div class="panel-title" style="margin-top: 15px;">Участники</div>
-            <ul id="participants-list">
-                <li>Нет активных участников</li>
-            </ul>
-        </div>
-        
-        <div id="video-container">
-            <div class="video-wrapper">
-                <div class="video-title">2D Аватар учителя</div>
-                <canvas id="avatar-canvas" width="640" height="480"></canvas>
-                <audio id="avatar-audio" hidden></audio>
-            </div>
-            <div class="video-wrapper">
-                <div class="video-title">Видеоконференция</div>
-                <iframe id="conference-iframe" allow="camera; microphone; display-capture"></iframe>
-            </div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title">Добавить учебный материал</div>
-            <div class="control-group">
-                <input type="text" id="material-subject" placeholder="Предмет">
-                <input type="text" id="material-title" placeholder="Название">
-                <textarea id="material-content" placeholder="Содержание"></textarea>
-                <button id="add-material-btn">Добавить материал</button>
-            </div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title">Вопрос к учителю</div>
-            <div class="control-group">
-                <input type="text" id="question-input" placeholder="Введите ваш вопрос">
-                <button id="ask-btn">Задать вопрос</button>
-            </div>
-        </div>
-        
-        <div id="log"></div>
+    <!-- Контейнер для видео участников -->
+    <div class="video-container" id="videoContainer">
+        <!-- Видео будет добавляться динамически -->
     </div>
-    
-    <!-- Библиотеки -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
+    <!-- Контейнер для демонстрации экрана -->
+    <div id="screenShareContainer" style="display: none;">
+        <div class="screen-share-controls">
+            <button class="screen-share-btn" id="stopScreenShareBtn">
+                <i class="material-icons">stop</i>
+                Stop Sharing
+            </button>
+        </div>
+        <video id="screenShareVideo" autoplay playsinline></video>
+    </div>
+
+    <!-- Форма входа -->
+    <div class="join-form" id="joinForm">
+        <h2>Join Video Conference</h2>
+        <div class="form-group">
+            <label for="username">Your Name</label>
+            <input type="text" id="username" placeholder="Enter your name">
+        </div>
+        <div class="form-group">
+            <label for="roomName">Room ID</label>
+            <input type="text" id="roomName" placeholder="Enter room ID">
+        </div>
+        <button class="join-btn" id="joinBtn">
+            Join Room
+        </button>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="control-panel" id="controlPanel" style="display: none;">
+        <button class="control-btn" id="toggleVideoBtn" title="Toggle Video">
+            <i class="material-icons">videocam</i>
+        </button>
+        <button class="control-btn" id="toggleAudioBtn" title="Toggle Audio">
+            <i class="material-icons">mic</i>
+        </button>
+        <button class="control-btn" id="screenShareBtn" title="Share Screen">
+            <i class="material-icons">screen_share</i>
+        </button>
+        <button class="control-btn" id="participantsBtn" title="Participants">
+            <i class="material-icons">people</i>
+        </button>
+        <button class="control-btn danger" id="leaveBtn" title="Leave Call">
+            <i class="material-icons">call_end</i>
+        </button>
+    </div>
+
+    <!-- Подключаем PeerJS библиотеку -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
     <script>
-        // Глобальные переменные
-        const socket = io();
-        const lessonSelect = document.getElementById('lesson-select');
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const connectBtn = document.getElementById('connect-btn');
-        const disconnectBtn = document.getElementById('disconnect-btn');
-        const roomNameInput = document.getElementById('room-name');
-        const canvas = document.getElementById('avatar-canvas');
-        const ctx = canvas.getContext('2d');
-        const avatarAudio = document.getElementById('avatar-audio');
-        const conferenceIframe = document.getElementById('conference-iframe');
-        const lessonContent = document.getElementById('lesson-content');
-        const logDiv = document.getElementById('log');
-        const aiStatusIndicator = document.getElementById('ai-status');
-        const aiStatusText = document.getElementById('status-text');
-        const conferenceStatusIndicator = document.getElementById('conference-status');
-        const conferenceStatusText = document.getElementById('conference-status-text');
-        const participantsList = document.getElementById('participants-list');
-        const uploadArea = document.getElementById('upload-area');
-        const lessonUpload = document.getElementById('lesson-upload');
-        const saveLessonsBtn = document.getElementById('save-lessons');
-        const loadLessonsBtn = document.getElementById('load-lessons');
-        const questionInput = document.getElementById('question-input');
-        const askBtn = document.getElementById('ask-btn');
-        const materialSubject = document.getElementById('material-subject');
-        const materialTitle = document.getElementById('material-title');
-        const materialContent = document.getElementById('material-content');
-        const addMaterialBtn = document.getElementById('add-material-btn');
-        
-        // Настройки
-        const CONFERENCE_SERVER = "https://conf.zindaki-edu.ru";
-        let currentSessionId = null;
+        // Global variables
+        let localStream = null;
+        let screenStream = null;
         let currentRoom = null;
+        let currentUser = null;
+        let isVideoEnabled = true;
+        let isAudioEnabled = true;
+        let isScreenSharing = false;
+        let videoTrack = null;
+        let audioTrack = null;
         let peer = null;
-        let mediaStream = null;
-        let currentPeerId = null;
-        let avatarFrames = {};
-        let currentPhoneme = 'mouth_neutral';
-        let currentFrameIndex = 0;
-        let lastFrameTime = 0;
-        let animationFrameId = null;
+        let peerId = null;
+        let connections = {};
+        let calls = {};
+        let mainVideoId = null;
         
-        // Инициализация PeerJS
-        function initPeerJS() {
-            currentPeerId = `ai-teacher-${Math.random().toString(36).substr(2, 9)}`;
-            peer = new Peer(currentPeerId);
-            
-            peer.on('open', (id) => {
-                log(`PeerJS подключен с ID: ${id}`, 'success');
-                updateConferenceStatus('online', 'Готов к подключению');
-            });
-            
-            peer.on('error', (err) => {
-                log(`Ошибка PeerJS: ${err.message}`, 'error');
-                updateConferenceStatus('offline', 'Ошибка подключения');
-            });
-            
-            peer.on('call', (call) => {
-                log(`Входящий вызов от ${call.peer}`, 'info');
-                call.answer(mediaStream);
-                
-                call.on('stream', (remoteStream) => {
-                    log(`Получен медиапоток от ${call.peer}`, 'success');
-                    addParticipant(call.peer, remoteStream);
-                });
-            });
-        }
+        // DOM elements
+        const joinBtn = document.getElementById('joinBtn');
+        const leaveBtn = document.getElementById('leaveBtn');
+        const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+        const screenShareBtn = document.getElementById('screenShareBtn');
+        const stopScreenShareBtn = document.getElementById('stopScreenShareBtn');
+        const usernameInput = document.getElementById('username');
+        const roomNameInput = document.getElementById('roomName');
+        const videoContainer = document.getElementById('videoContainer');
+        const screenShareContainer = document.getElementById('screenShareContainer');
+        const screenShareVideo = document.getElementById('screenShareVideo');
+        const joinForm = document.getElementById('joinForm');
+        const controlPanel = document.getElementById('controlPanel');
         
-        // Подключение к конференции
-        async function connectToConference() {
-            currentRoom = roomNameInput.value.trim();
-            if (!currentRoom) {
-                log('Пожалуйста, укажите название комнаты', 'error');
+        // Join room
+        joinBtn.addEventListener('click', async () => {
+            const username = usernameInput.value.trim();
+            const roomName = roomNameInput.value.trim();
+            
+            if (!username || !roomName) {
+                showNotification('Please enter your name and room name');
                 return;
             }
             
+            currentUser = username;
+            currentRoom = roomName;
+            
             try {
-                updateConferenceStatus('connecting', 'Подключение...');
-                
-                // Получаем доступ к микрофону
-                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                
-                // Создаем оффер
-                const offer = await peer.connect(currentRoom);
-                
-                // Отправляем оффер на сервер через Socket.IO
-                socket.emit('webrtc_offer', {
-                    room: currentRoom,
-                    offer: offer
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
                 });
                 
-                log(`Подключение к комнате "${currentRoom}"`, 'info');
+                // Add local video
+                addLocalVideo(localStream);
                 
-                // Загружаем iframe с конференцией
-                conferenceIframe.src = `${CONFERENCE_SERVER}/?room=${encodeURIComponent(currentRoom)}&role=teacher`;
+                // Initialize PeerJS
+                await initializePeerJS(username, roomName);
                 
-            } catch (err) {
-                log(`Ошибка подключения: ${err.message}`, 'error');
-                updateConferenceStatus('offline', 'Ошибка подключения');
-                if (mediaStream) {
-                    mediaStream.getTracks().forEach(track => track.stop());
-                    mediaStream = null;
+                // Update UI
+                joinForm.style.display = 'none';
+                controlPanel.style.display = 'flex';
+                
+                // Get list of other participants and connect to them
+                await connectToOtherParticipants();
+                
+                // Автоматически разворачиваем на весь экран при начале конференции
+                setTimeout(() => {
+                    enterFullscreenMode();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error joining room:', error);
+                showNotification('Error joining room: ' + error.message);
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                    localStream = null;
+                }
+                if (peer) {
+                    peer.destroy();
+                    peer = null;
                 }
             }
-        }
+        });
         
-        // Отключение от конференции
-        async function disconnectFromConference() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
+        // Add local video
+        function addLocalVideo(stream) {
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item local-video';
+            videoItem.id = 'localVideoItem';
             
-            if (peer) {
-                peer.disconnect();
-            }
+            const video = document.createElement('video');
+            video.id = 'localVideo';
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.srcObject = stream;
             
-            conferenceIframe.src = '';
-            updateConferenceStatus('offline', 'Нет подключения');
-            participantsList.innerHTML = '<li>Нет активных участников</li>';
-            log(`Отключено от комнаты "${currentRoom}"`, 'info');
-            currentRoom = null;
-        }
-        
-        // Добавление участника в список
-        function addParticipant(peerId, stream) {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <span class="status-indicator status-online"></span>
-                <span>${peerId}</span>
+            const participantInfo = document.createElement('div');
+            participantInfo.className = 'participant-info';
+            participantInfo.innerHTML = `
+                <div class="participant-status"></div>
+                <span>${currentUser} (You)</span>
             `;
-            participantsList.appendChild(li);
-        }
-        
-        // Обновление статуса конференции
-        function updateConferenceStatus(status, text) {
-            conferenceStatusIndicator.className = `status-indicator status-${status}`;
-            conferenceStatusText.textContent = text;
             
-            if (status === 'online') {
-                connectBtn.disabled = true;
-                disconnectBtn.disabled = false;
-            } else {
-                connectBtn.disabled = false;
-                disconnectBtn.disabled = true;
-            }
-        }
-        
-        // Обновление статуса AI
-        function updateAIStatus(status, text) {
-            aiStatusIndicator.className = `status-indicator status-${status}`;
-            aiStatusText.textContent = text;
-        }
-        
-        // Загрузка списка уроков
-        function loadLessons() {
-            fetch('/api/lessons')
-                .then(res => {
-                    if (!res.ok) throw new Error('Ошибка загрузки уроков');
-                    return res.json();
-                })
-                .then(data => {
-                    lessonSelect.innerHTML = '<option value="">-- Выберите урок --</option>';
-                    data.lessons.forEach(lesson => {
-                        const option = document.createElement('option');
-                        option.value = lesson.id;
-                        option.textContent = `${lesson.title} (${lesson.subject})`;
-                        lessonSelect.appendChild(option);
-                    });
-                    log('Список уроков загружен', 'success');
-                })
-                .catch(err => {
-                    log(`Ошибка: ${err.message}`, 'error');
-                });
-        }
-        
-        // Загрузка кадров аватара
-        async function loadAvatarFrames() {
-            try {
-                const response = await fetch('/api/avatar_frames');
-                avatarFrames = await response.json();
-                log('Кадры аватара загружены', 'success');
-                startAvatarAnimation();
-            } catch (err) {
-                log(`Ошибка загрузки кадров аватара: ${err.message}`, 'error');
-            }
-        }
-        
-        // Анимация аватара
-        function startAvatarAnimation() {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
+            videoItem.appendChild(video);
+            videoItem.appendChild(participantInfo);
+            videoContainer.appendChild(videoItem);
             
-            const animate = (timestamp) => {
-                if (!avatarFrames[currentPhoneme] || avatarFrames[currentPhoneme].length === 0) {
-                    currentPhoneme = 'mouth_neutral';
-                }
-                
-                const frames = avatarFrames[currentPhoneme];
-                const frameDuration = 100; // ms per frame
-                
-                if (timestamp - lastFrameTime > frameDuration) {
-                    currentFrameIndex = (currentFrameIndex + 1) % frames.length;
-                    lastFrameTime = timestamp;
-                    
-                    const img = new Image();
-                    img.onload = function() {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    };
-                    img.src = frames[currentFrameIndex];
-                }
-                
-                animationFrameId = requestAnimationFrame(animate);
-            };
+            videoTrack = stream.getVideoTracks()[0];
+            audioTrack = stream.getAudioTracks()[0];
             
-            animationFrameId = requestAnimationFrame(animate);
-        }
-        
-        // Настройка загрузки уроков
-        function setupUpload() {
-            uploadArea.addEventListener('click', () => lessonUpload.click());
-            
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.style.borderColor = '#3498db';
-            });
-            
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.style.borderColor = '#ccc';
-            });
-            
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.style.borderColor = '#ccc';
-                if (e.dataTransfer.files.length) {
-                    handleLessonUpload(e.dataTransfer.files[0]);
-                }
-            });
-            
-            lessonUpload.addEventListener('change', () => {
-                if (lessonUpload.files.length) {
-                    handleLessonUpload(lessonUpload.files[0]);
-                }
+            // Добавляем обработчик клика для выбора главного видео
+            videoItem.addEventListener('click', () => {
+                setMainVideo('localVideoItem');
             });
         }
         
-        function handleLessonUpload(file) {
-            if (!file.name.endsWith('.json')) {
-                log('Файл должен быть в формате JSON', 'error');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('lesson', file);
-            
-            const lessonId = prompt('Введите ID урока (оставьте пустым для автогенерации)');
-            if (lessonId !== null) {
-                formData.append('lesson_id', lessonId || '');
-                
-                fetch('/api/upload_lesson', {
+        // Initialize PeerJS connection
+        async function initializePeerJS(username, roomName) {
+            return new Promise((resolve, reject) => {
+                fetch('/api/get_peer_id', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        user_id: username,
+                        room_name: roomName 
+                    })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.error) throw new Error(data.error);
-                    log(`Урок успешно загружен с ID: ${data.lesson_id}`, 'success');
-                    loadLessons();
+                    if (data.success) {
+                        peer = new Peer(data.peer_id);
+                        
+                        peer.on('open', (id) => {
+                            console.log('PeerJS connected with ID:', id);
+                            peerId = id;
+                            resolve();
+                        });
+                        
+                        peer.on('error', (err) => {
+                            console.error('PeerJS error:', err);
+                            reject(err);
+                        });
+                        
+                        peer.on('connection', (conn) => {
+                            console.log('Incoming connection from:', conn.peer);
+                            
+                            conn.on('open', () => {
+                                console.log('Connection established with:', conn.peer);
+                                connections[conn.peer] = conn;
+                            });
+                            
+                            conn.on('close', () => {
+                                console.log('Connection closed with:', conn.peer);
+                                removeRemoteVideo(conn.peer);
+                                delete connections[conn.peer];
+                            });
+                        });
+                        
+                        peer.on('call', (call) => {
+                            console.log('Incoming call from:', call.peer);
+                            
+                            // Answer with current stream (either camera or screen share)
+                            const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
+                            call.answer(streamToAnswerWith);
+                            
+                            call.on('stream', (remoteStream) => {
+                                addRemoteVideo(call.peer, remoteStream);
+                            });
+                            
+                            call.on('close', () => {
+                                console.log('Call ended with:', call.peer);
+                                removeRemoteVideo(call.peer);
+                                if (calls[call.peer]) {
+                                    delete calls[call.peer];
+                                }
+                            });
+                            
+                            calls[call.peer] = call;
+                        });
+                        
+                    } else {
+                        reject(new Error(data.error || 'Failed to get PeerJS ID'));
+                    }
                 })
-                .catch(err => {
-                    log(`Ошибка загрузки урока: ${err.message}`, 'error');
-                });
-            }
+                .catch(reject);
+            });
         }
         
-        // Сохранение уроков в localStorage
-        function saveLessonsToLocal() {
-            fetch('/api/lessons')
-                .then(res => res.json())
-                .then(data => {
-                    localStorage.setItem('savedLessons', JSON.stringify(data.lessons));
-                    log('Уроки сохранены в localStorage', 'success');
-                });
-        }
-        
-        // Загрузка уроков из localStorage
-        function loadLessonsFromLocal() {
-            const saved = localStorage.getItem('savedLessons');
-            if (!saved) {
-                log('Нет сохраненных уроков', 'error');
-                return;
-            }
-            
+        // Connect to other participants
+        async function connectToOtherParticipants() {
             try {
-                const lessons = JSON.parse(saved);
-                lessonSelect.innerHTML = '<option value="">-- Выберите урок --</option>';
-                lessons.forEach(lesson => {
-                    const option = document.createElement('option');
-                    option.value = lesson.id;
-                    option.textContent = `${lesson.title} (${lesson.subject})`;
-                    lessonSelect.appendChild(option);
-                });
-                log('Уроки загружены из localStorage', 'success');
-            } catch (err) {
-                log(`Ошибка загрузки уроков: ${err.message}`, 'error');
-            }
-        }
-        
-        // Начало урока
-        async function startLesson() {
-            const lessonId = lessonSelect.value;
-            if (!lessonId) {
-                log('Пожалуйста, выберите урок', 'error');
-                return;
-            }
-            
-            if (!currentRoom) {
-                log('Пожалуйста, подключитесь к конференции', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/start_lesson', {
+                const response = await fetch('/api/get_peer_ids', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify({
-                        lesson_id: lessonId,
-                        room_id: currentRoom
+                        room_name: currentRoom,
+                        current_user: currentUser
                     })
                 });
                 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Неизвестная ошибка');
-                }
-                
                 const data = await response.json();
-                currentSessionId = data.session_id;
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                lessonContent.innerHTML = '';
                 
-                updateAIStatus('online', 'Урок активен');
-                log(`Урок "${lessonSelect.options[lessonSelect.selectedIndex].text}" начат`, 'success');
-                
-            } catch (err) {
-                log(`Ошибка: ${err.message}`, 'error');
-            }
-        }
-        
-        // Остановка урока
-        async function stopLesson() {
-            if (!currentSessionId) return;
-            
-            try {
-                const response = await fetch('/api/stop_lesson', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: currentSessionId })
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Неизвестная ошибка');
-                }
-                
-                log('Урок остановлен', 'info');
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                currentSessionId = null;
-                
-                updateAIStatus('offline', 'Урок не активен');
-                
-            } catch (err) {
-                log(`Ошибка: ${err.message}`, 'error');
-            }
-        }
-        
-        // Воспроизведение аудио и анимация аватара
-        function playAudioWithAnimation(audioData, phonemes) {
-            // Создаем Blob из base64 аудио
-            const byteCharacters = atob(audioData);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'audio/wav' });
-            
-            // Устанавливаем источник для аудио элемента
-            avatarAudio.src = URL.createObjectURL(blob);
-            
-            // Обновляем фонемы для анимации
-            if (phonemes && phonemes.length > 0) {
-                currentPhoneme = phonemes[0][0]; // Берем первую фонему
-            }
-            
-            // Воспроизводим аудио
-            avatarAudio.play().catch(e => {
-                log(`Ошибка воспроизведения аудио: ${e.message}`, 'error');
-            });
-        }
-        
-        // Добавление учебного материала
-        async function addMaterial() {
-            const subject = materialSubject.value.trim();
-            const title = materialTitle.value.trim();
-            const content = materialContent.value.trim();
-            
-            if (!subject || !title || !content) {
-                log('Заполните все поля', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/add_material', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ subject, title, content })
-                });
-                
-                const data = await response.json();
                 if (data.success) {
-                    log('Материал успешно добавлен', 'success');
-                    materialSubject.value = '';
-                    materialTitle.value = '';
-                    materialContent.value = '';
-                } else {
-                    throw new Error(data.error || 'Ошибка добавления');
+                    for (const [user, peerId] of Object.entries(data.peers)) {
+                        const conn = peer.connect(peerId);
+                        
+                        conn.on('open', () => {
+                            console.log('Connected to peer:', peerId);
+                            connections[peerId] = conn;
+                            
+                            const call = peer.call(peerId, localStream);
+                            
+                            call.on('stream', (remoteStream) => {
+                                addRemoteVideo(peerId, remoteStream);
+                            });
+                            
+                            call.on('close', () => {
+                                console.log('Call ended with:', peerId);
+                                removeRemoteVideo(peerId);
+                                if (calls[peerId]) {
+                                    delete calls[peerId];
+                                }
+                            });
+                            
+                            calls[peerId] = call;
+                        });
+                        
+                        conn.on('close', () => {
+                            console.log('Connection closed with:', peerId);
+                            removeRemoteVideo(peerId);
+                            delete connections[peerId];
+                        });
+                    }
                 }
-            } catch (err) {
-                log(`Ошибка: ${err.message}`, 'error');
+            } catch (error) {
+                console.error('Error connecting to other participants:', error);
             }
         }
         
-        // Отправка вопроса AI учителю
-        function askQuestion() {
-            const question = questionInput.value.trim();
-            if (!question) {
-                log('Введите текст вопроса', 'error');
-                return;
-            }
+        // Add remote video
+        function addRemoteVideo(peerId, stream) {
+            if (document.getElementById(`remoteVideo-${peerId}`)) return;
             
-            if (!currentSessionId) {
-                log('Сначала начните урок', 'error');
-                return;
-            }
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
+            videoItem.id = `videoItem-${peerId}`;
             
-            socket.emit('ask_question', {
-                session_id: currentSessionId,
-                question: question,
-                subject: lessonSelect.options[lessonSelect.selectedIndex]?.text.split('(')[1]?.replace(')', '') || 'обществознание'
+            const video = document.createElement('video');
+            video.id = `remoteVideo-${peerId}`;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.srcObject = stream;
+            
+            const participantInfo = document.createElement('div');
+            participantInfo.className = 'participant-info';
+            participantInfo.innerHTML = `
+                <div class="participant-status"></div>
+                <span>${peerId}</span>
+            `;
+            
+            videoItem.appendChild(video);
+            videoItem.appendChild(participantInfo);
+            videoContainer.appendChild(videoItem);
+            
+            // Добавляем обработчик клика для выбора главного видео
+            videoItem.addEventListener('click', () => {
+                setMainVideo(`videoItem-${peerId}`);
             });
             
-            questionInput.value = '';
-            log(`Отправлен вопрос: ${question}`, 'info');
-        }
-        
-        // Логирование
-        function log(message, type = 'info') {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.textContent = `[${timeString}] ${message}`;
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-        }
-        
-        // Получение текущего предмета
-        function getCurrentSubject() {
-            const selectedOption = lessonSelect.options[lessonSelect.selectedIndex];
-            if (selectedOption) {
-                const text = selectedOption.text;
-                const match = text.match(/\(([^)]+)\)/);
-                return match ? match[1] : 'обществознание';
+            // Если это первый участник, делаем его видео главным
+            if (!mainVideoId && peerId) {
+                setMainVideo(`videoItem-${peerId}`);
             }
-            return 'обществознание';
         }
         
-        // WebSocket обработчики
-        socket.on('connect', () => {
-            log('Подключено к серверу AI учителя', 'success');
-            updateAIStatus('online', 'Сервер подключен');
-            loadLessons();
-            loadAvatarFrames();
-        });
+        // Remove remote video
+        function removeRemoteVideo(peerId) {
+            const videoItem = document.getElementById(`videoItem-${peerId}`);
+            if (videoItem) {
+                // Если удаляем главное видео, выбираем новое главное
+                if (videoItem.id === mainVideoId) {
+                    const remainingVideos = document.querySelectorAll('.video-item:not(.main-video)');
+                    if (remainingVideos.length > 0) {
+                        setMainVideo(remainingVideos[0].id);
+                    } else {
+                        exitFullscreenMode();
+                    }
+                }
+                videoItem.remove();
+            }
+        }
         
-        socket.on('disconnect', () => {
-            log('Отключено от сервера AI учителя', 'error');
-            updateAIStatus('offline', 'Сервер отключен');
-        });
-        
-        socket.on('ai_response', data => {
-            const responseDiv = document.createElement('div');
-            responseDiv.className = 'answer';
-            responseDiv.innerHTML = `
-                <p><strong>Ответ:</strong> ${data.text}</p>
-                ${data.materials?.length ? `<p><small>Источники: ${data.materials.map(m => m.title).join(', ')}</small></p>` : ''}
-            `;
-            lessonContent.appendChild(responseDiv);
+        // Set main video
+        function setMainVideo(videoItemId) {
+            // Если уже выбрано это видео, выходим из полноэкранного режима
+            if (mainVideoId === videoItemId) {
+                exitFullscreenMode();
+                return;
+            }
             
-            playAudioWithAnimation(data.audio, data.phonemes);
-            log('Получен ответ от AI учителя', 'success');
-        });
-        
-        socket.on('transcription', data => {
-            if (data.room === currentRoom) {
-                log(`Ученик: ${data.text}`, 'info');
-                // Автоматически отправляем вопрос учителю
-                socket.emit('ask_question', {
-                    session_id: currentSessionId,
-                    question: data.text,
-                    subject: getCurrentSubject()
-                });
+            // Убираем предыдущее главное видео
+            if (mainVideoId) {
+                const prevMainVideo = document.getElementById(mainVideoId);
+                if (prevMainVideo) {
+                    prevMainVideo.classList.remove('main-video');
+                }
             }
-        });
-        
-        socket.on('webrtc_answer', data => {
-            if (data.room === currentRoom && peer) {
-                peer.handleAnswer(data.sdp).catch(err => {
-                    log(`Ошибка обработки ответа WebRTC: ${err.message}`, 'error');
-                });
-            }
-        });
-        
-        socket.on('webrtc_error', data => {
-            log(`WebRTC ошибка: ${data.error}`, 'error');
-            updateConferenceStatus('offline', 'Ошибка подключения');
-        });
-        
-        socket.on('error', data => {
-            log(`Ошибка: ${data.message}`, 'error');
-        });
-        
-        // Обработчики событий
-        document.addEventListener('DOMContentLoaded', () => {
-            log('Система AI учителя инициализирована', 'info');
-            updateAIStatus('offline', 'Урок не активен');
-            updateConferenceStatus('offline', 'Нет подключения');
             
-            // Инициализация
-            initPeerJS();
-            setupUpload();
-            loadLessons();
-            loadAvatarFrames();
-        });
-        
-        startBtn.addEventListener('click', startLesson);
-        stopBtn.addEventListener('click', stopLesson);
-        connectBtn.addEventListener('click', connectToConference);
-        disconnectBtn.addEventListener('click', disconnectFromConference);
-        saveLessonsBtn.addEventListener('click', saveLessonsToLocal);
-        loadLessonsBtn.addEventListener('click', loadLessonsFromLocal);
-        askBtn.addEventListener('click', askQuestion);
-        questionInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') askQuestion();
-        });
-        addMaterialBtn.addEventListener('click', addMaterial);
-        
-        // Очистка при закрытии страницы
-        window.addEventListener('beforeunload', () => {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
+            // Устанавливаем новое главное видео
+            const newMainVideo = document.getElementById(videoItemId);
+            if (newMainVideo) {
+                newMainVideo.classList.add('main-video');
+                mainVideoId = videoItemId;
+                enterFullscreenMode();
             }
+        }
+        
+        // Enter fullscreen mode
+        function enterFullscreenMode() {
+            videoContainer.classList.add('main-view');
+            
+            // Если есть iframe родитель, попробуем развернуть его на весь экран
+            if (window.self !== window.top) {
+                try {
+                    const iframe = window.frameElement;
+                    if (iframe) {
+                        if (iframe.requestFullscreen) {
+                            iframe.requestFullscreen();
+                        } else if (iframe.webkitRequestFullscreen) {
+                            iframe.webkitRequestFullscreen();
+                        } else if (iframe.msRequestFullscreen) {
+                            iframe.msRequestFullscreen();
+                        }
+                    }
+                } catch (e) {
+                    console.log('Fullscreen error:', e);
+                }
+            }
+        }
+        
+        // Exit fullscreen mode
+        function exitFullscreenMode() {
+            videoContainer.classList.remove('main-view');
+            mainVideoId = null;
+            
+            // Убираем класс main-video у всех элементов
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('main-video');
+            });
+            
+            // Выходим из полноэкранного режима, если мы в iframe
+            if (window.self !== window.top) {
+                try {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                } catch (e) {
+                    console.log('Exit fullscreen error:', e);
+                }
+            }
+        }
+        
+        // Toggle video
+        toggleVideoBtn.addEventListener('click', () => {
+            isVideoEnabled = !isVideoEnabled;
+            if (videoTrack) {
+                videoTrack.enabled = isVideoEnabled;
+                toggleVideoBtn.innerHTML = isVideoEnabled 
+                    ? '<i class="material-icons">videocam</i>' 
+                    : '<i class="material-icons">videocam_off</i>';
+                toggleVideoBtn.classList.toggle('active', !isVideoEnabled);
+            }
+        });
+        
+        // Toggle audio
+        toggleAudioBtn.addEventListener('click', () => {
+            isAudioEnabled = !isAudioEnabled;
+            if (audioTrack) {
+                audioTrack.enabled = isAudioEnabled;
+                toggleAudioBtn.innerHTML = isAudioEnabled 
+                    ? '<i class="material-icons">mic</i>' 
+                    : '<i class="material-icons">mic_off</i>';
+                toggleAudioBtn.classList.toggle('active', !isAudioEnabled);
+            }
+        });
+        
+        // Screen share
+        screenShareBtn.addEventListener('click', toggleScreenShare);
+        
+        // Stop screen share
+        stopScreenShareBtn.addEventListener('click', stopScreenShare);
+        
+        // Toggle screen sharing
+        async function toggleScreenShare() {
+            if (isScreenSharing) {
+                await stopScreenShare();
+            } else {
+                await startScreenShare();
+            }
+        }
+        
+        // Start screen sharing
+        async function startScreenShare() {
+            try {
+                // For iOS/Safari, we need to use the experimental API
+                const constraints = {
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: false
+                };
+                
+                // Adjust constraints for different browsers
+                if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+                    // iOS devices
+                    constraints.video = true;
+                } else if (navigator.mediaDevices.getDisplayMedia) {
+                    // Standard getDisplayMedia
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                            frameRate: { ideal: 30 }
+                        },
+                        audio: false
+                    });
+                } else if (navigator.mediaDevices.getUserMedia) {
+                    // Fallback for older browsers
+                    screenStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'screen',
+                                maxWidth: 1920,
+                                maxHeight: 1080,
+                                maxFrameRate: 30
+                            }
+                        }
+                    });
+                } else {
+                    throw new Error('Screen sharing not supported');
+                }
+                
+                // Show screen share preview
+                screenShareVideo.srcObject = screenStream;
+                screenShareContainer.style.display = 'block';
+                
+                // Update UI
+                screenShareBtn.innerHTML = '<i class="material-icons">stop_screen_share</i>';
+                screenShareBtn.classList.add('active');
+                
+                isScreenSharing = true;
+                
+                // Replace video track in all existing calls
+                const screenVideoTrack = screenStream.getVideoTracks()[0];
+                for (const call of Object.values(calls)) {
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track.kind === 'video') {
+                            sender.replaceTrack(screenVideoTrack);
+                        }
+                    });
+                }
+                
+                // Handle when screen sharing is stopped by browser UI
+                screenStream.getVideoTracks()[0].onended = () => {
+                    stopScreenShare();
+                };
+                
+            } catch (error) {
+                console.error('Error starting screen share:', error);
+                showNotification('Error starting screen share: ' + error.message);
+            }
+        }
+        
+        // Stop screen sharing
+        async function stopScreenShare() {
+            if (!isScreenSharing) return;
+            
+            // Hide screen share preview
+            screenShareContainer.style.display = 'none';
+            
+            // Stop screen stream
+            screenStream.getTracks().forEach(track => track.stop());
+            screenStream = null;
+            
+            // Update UI
+            screenShareBtn.innerHTML = '<i class="material-icons">screen_share</i>';
+            screenShareBtn.classList.remove('active');
+            
+            isScreenSharing = false;
+            
+            // Restore camera video track in all existing calls
+            if (localStream) {
+                const cameraVideoTrack = localStream.getVideoTracks()[0];
+                for (const call of Object.values(calls)) {
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track.kind === 'video') {
+                            sender.replaceTrack(cameraVideoTrack);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Leave room
+        leaveBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to leave the room?')) {
+                await leaveRoom();
+            }
+        });
+        
+        // Leave the room
+        async function leaveRoom() {
+            // Stop screen sharing if active
+            if (isScreenSharing) {
+                await stopScreenShare();
+            }
+            
+            // Close all connections
+            for (const conn of Object.values(connections)) {
+                conn.close();
+            }
+            connections = {};
+            
+            // Close all calls
+            for (const call of Object.values(calls)) {
+                call.close();
+            }
+            calls = {};
+            
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            // Destroy PeerJS instance
             if (peer) {
                 peer.destroy();
+                peer = null;
             }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
+            
+            // Notify server we're leaving
+            try {
+                await fetch('/api/get_peer_ids', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        room_name: currentRoom,
+                        current_user: currentUser,
+                        action: 'leave'
+                    })
+                });
+            } catch (error) {
+                console.error('Error notifying server about leaving:', error);
+            }
+            
+            // Reset UI
+            joinForm.style.display = 'block';
+            controlPanel.style.display = 'none';
+            videoContainer.innerHTML = '';
+            exitFullscreenMode();
+            
+            currentRoom = null;
+            currentUser = null;
+            peerId = null;
+            mainVideoId = null;
+        }
+        
+        // Show notification
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `
+                <i class="material-icons">info</i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', async () => {
+            if (currentRoom) {
+                await leaveRoom();
             }
         });
     </script>
