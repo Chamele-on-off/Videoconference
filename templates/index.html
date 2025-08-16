@@ -366,6 +366,53 @@
         const joinForm = document.getElementById('joinForm');
         const controlPanel = document.getElementById('controlPanel');
         
+        // Извлекаем параметры из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        const userParam = urlParams.get('user');
+        const nameParam = urlParams.get('name');
+        const autostartParam = urlParams.get('autostart');
+        
+        // Если есть параметры в URL, заполняем форму
+        if (roomParam && userParam && nameParam) {
+            usernameInput.value = nameParam;
+            roomNameInput.value = roomParam;
+            
+            // Если autostart=1, автоматически присоединяемся
+            if (autostartParam === '1') {
+                joinBtn.click();
+            }
+        }
+        
+        // Слушаем сообщения от родительского окна
+        window.addEventListener('message', function(event) {
+            // Проверяем источник сообщения
+            if (event.origin !== window.location.origin) return;
+            
+            const data = event.data;
+            
+            if (data.type === 'roomUpdate') {
+                // Обновляем параметры комнаты
+                currentRoom = data.room;
+                currentUser = data.user;
+                
+                // Обновляем URL без перезагрузки страницы
+                const newUrl = `${window.location.pathname}?room=${data.room}&user=${data.user}&name=${data.name}&autostart=1`;
+                window.history.replaceState(null, null, newUrl);
+                
+                // Обновляем поля формы
+                usernameInput.value = data.name;
+                roomNameInput.value = data.room;
+                
+                // Если уже подключены, переподключаемся
+                if (peer) {
+                    leaveRoom().then(() => {
+                        joinBtn.click();
+                    });
+                }
+            }
+        });
+        
         // Join room
         joinBtn.addEventListener('click', async () => {
             const username = usernameInput.value.trim();
