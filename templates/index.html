@@ -31,6 +31,41 @@
             padding: 10px;
         }
 
+        /* Главное видео (на весь экран) */
+        .video-container.main-view {
+            grid-template-columns: 1fr;
+        }
+
+        .video-container.main-view .video-item:not(.main-video) {
+            position: absolute;
+            width: 200px;
+            height: 150px;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .video-container.main-view .video-item:not(.main-video):hover {
+            transform: scale(1.05);
+            border-color: rgba(0, 150, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+        }
+
+        .video-container.main-view .video-item:not(.main-video):nth-child(2) {
+            right: 240px;
+        }
+
+        .video-container.main-view .video-item:not(.main-video):nth-child(3) {
+            right: 460px;
+        }
+
+        .video-container.main-view .video-item:not(.main-video):nth-child(4) {
+            right: 680px;
+        }
+
         /* Видео участников */
         .video-item {
             position: relative;
@@ -38,6 +73,13 @@
             border-radius: 12px;
             overflow: hidden;
             transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .video-item.main-video {
+            grid-column: 1 / -1;
+            grid-row: 1 / -1;
+            z-index: 5;
         }
 
         .video-item video {
@@ -229,6 +271,25 @@
                 height: 45px;
                 font-size: 18px;
             }
+
+            .video-container.main-view .video-item:not(.main-video) {
+                width: 120px;
+                height: 90px;
+                bottom: 10px;
+                right: 10px;
+            }
+
+            .video-container.main-view .video-item:not(.main-video):nth-child(2) {
+                right: 140px;
+            }
+
+            .video-container.main-view .video-item:not(.main-video):nth-child(3) {
+                right: 270px;
+            }
+
+            .video-container.main-view .video-item:not(.main-video):nth-child(4) {
+                right: 400px;
+            }
         }
 
         /* Стиль для демонстрации экрана */
@@ -324,9 +385,6 @@
         <button class="control-btn" id="screenShareBtn" title="Share Screen">
             <i class="material-icons">screen_share</i>
         </button>
-        <button class="control-btn" id="participantsBtn" title="Participants">
-            <i class="material-icons">people</i>
-        </button>
         <button class="control-btn danger" id="leaveBtn" title="Leave Call">
             <i class="material-icons">call_end</i>
         </button>
@@ -350,6 +408,7 @@
         let peerId = null;
         let connections = {};
         let calls = {};
+        let mainVideoId = null;
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -399,14 +458,61 @@
                 addLocalVideo(localStream);
                 
                 // Initialize PeerJS
-                await initializePeerJS(username, roomName);
+                peerId = `peer-${Math.random().toString(36).substr(2, 9)}`;
+                peer = new Peer(peerId);
                 
-                // Update UI
-                joinForm.style.display = 'none';
-                controlPanel.style.display = 'flex';
+                peer.on('open', () => {
+                    console.log('PeerJS connected with ID:', peerId);
+                    joinForm.style.display = 'none';
+                    controlPanel.style.display = 'flex';
+                    
+                    // Automatically enter fullscreen mode
+                    setTimeout(() => {
+                        enterFullscreenMode();
+                    }, 1000);
+                });
                 
-                // Get list of other participants and connect to them
-                await connectToOtherParticipants();
+                peer.on('error', (err) => {
+                    console.error('PeerJS error:', err);
+                    showNotification('Connection error: ' + err.message);
+                });
+                
+                peer.on('connection', (conn) => {
+                    console.log('Incoming connection:', conn.peer);
+                    
+                    conn.on('open', () => {
+                        console.log('Connection established with:', conn.peer);
+                        connections[conn.peer] = conn;
+                    });
+                    
+                    conn.on('close', () => {
+                        console.log('Connection closed with:', conn.peer);
+                        removeRemoteVideo(conn.peer);
+                        delete connections[conn.peer];
+                    });
+                });
+                
+                peer.on('call', (call) => {
+                    console.log('Incoming call from:', call.peer);
+                    
+                    // Answer with current stream (either camera or screen share)
+                    const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
+                    call.answer(streamToAnswerWith);
+                    
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(call.peer, remoteStream);
+                    });
+                    
+                    call.on('close', () => {
+                        console.log('Call ended with:', call.peer);
+                        removeRemoteVideo(call.peer);
+                        if (calls[call.peer]) {
+                            delete calls[call.peer];
+                        }
+                    });
+                    
+                    calls[call.peer] = call;
+                });
                 
             } catch (error) {
                 console.error('Error joining room:', error);
@@ -448,133 +554,11 @@
             
             videoTrack = stream.getVideoTracks()[0];
             audioTrack = stream.getAudioTracks()[0];
-        }
-        
-        // Initialize PeerJS connection
-        async function initializePeerJS(username, roomName) {
-            return new Promise((resolve, reject) => {
-                fetch('/api/get_peer_id', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        user_id: username,
-                        room_name: roomName 
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        peer = new Peer(data.peer_id);
-                        
-                        peer.on('open', (id) => {
-                            console.log('PeerJS connected with ID:', id);
-                            peerId = id;
-                            resolve();
-                        });
-                        
-                        peer.on('error', (err) => {
-                            console.error('PeerJS error:', err);
-                            reject(err);
-                        });
-                        
-                        peer.on('connection', (conn) => {
-                            console.log('Incoming connection from:', conn.peer);
-                            
-                            conn.on('open', () => {
-                                console.log('Connection established with:', conn.peer);
-                                connections[conn.peer] = conn;
-                            });
-                            
-                            conn.on('close', () => {
-                                console.log('Connection closed with:', conn.peer);
-                                removeRemoteVideo(conn.peer);
-                                delete connections[conn.peer];
-                            });
-                        });
-                        
-                        peer.on('call', (call) => {
-                            console.log('Incoming call from:', call.peer);
-                            
-                            // Answer with current stream (either camera or screen share)
-                            const streamToAnswerWith = isScreenSharing && screenStream ? screenStream : localStream;
-                            call.answer(streamToAnswerWith);
-                            
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(call.peer, remoteStream);
-                            });
-                            
-                            call.on('close', () => {
-                                console.log('Call ended with:', call.peer);
-                                removeRemoteVideo(call.peer);
-                                if (calls[call.peer]) {
-                                    delete calls[call.peer];
-                                }
-                            });
-                            
-                            calls[call.peer] = call;
-                        });
-                        
-                    } else {
-                        reject(new Error(data.error || 'Failed to get PeerJS ID'));
-                    }
-                })
-                .catch(reject);
+            
+            // Add click handler for main video selection
+            videoItem.addEventListener('click', () => {
+                setMainVideo('localVideoItem');
             });
-        }
-        
-        // Connect to other participants
-        async function connectToOtherParticipants() {
-            try {
-                const response = await fetch('/api/get_peer_ids', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_name: currentRoom,
-                        current_user: currentUser
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    for (const [user, peerId] of Object.entries(data.peers)) {
-                        const conn = peer.connect(peerId);
-                        
-                        conn.on('open', () => {
-                            console.log('Connected to peer:', peerId);
-                            connections[peerId] = conn;
-                            
-                            const call = peer.call(peerId, localStream);
-                            
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(peerId, remoteStream);
-                            });
-                            
-                            call.on('close', () => {
-                                console.log('Call ended with:', peerId);
-                                removeRemoteVideo(peerId);
-                                if (calls[peerId]) {
-                                    delete calls[peerId];
-                                }
-                            });
-                            
-                            calls[peerId] = call;
-                        });
-                        
-                        conn.on('close', () => {
-                            console.log('Connection closed with:', peerId);
-                            removeRemoteVideo(peerId);
-                            delete connections[peerId];
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error('Error connecting to other participants:', error);
-            }
         }
         
         // Add remote video
@@ -601,13 +585,106 @@
             videoItem.appendChild(video);
             videoItem.appendChild(participantInfo);
             videoContainer.appendChild(videoItem);
+            
+            // Add click handler for main video selection
+            videoItem.addEventListener('click', () => {
+                setMainVideo(`videoItem-${peerId}`);
+            });
+            
+            // If this is the first participant, make it the main video
+            if (!mainVideoId && peerId) {
+                setMainVideo(`videoItem-${peerId}`);
+            }
         }
         
         // Remove remote video
         function removeRemoteVideo(peerId) {
             const videoItem = document.getElementById(`videoItem-${peerId}`);
             if (videoItem) {
+                // If removing main video, select new main video
+                if (videoItem.id === mainVideoId) {
+                    const remainingVideos = document.querySelectorAll('.video-item:not(.main-video)');
+                    if (remainingVideos.length > 0) {
+                        setMainVideo(remainingVideos[0].id);
+                    } else {
+                        exitFullscreenMode();
+                    }
+                }
                 videoItem.remove();
+            }
+        }
+        
+        // Set main video
+        function setMainVideo(videoItemId) {
+            // If already selected this video, exit fullscreen mode
+            if (mainVideoId === videoItemId) {
+                exitFullscreenMode();
+                return;
+            }
+            
+            // Remove previous main video
+            if (mainVideoId) {
+                const prevMainVideo = document.getElementById(mainVideoId);
+                if (prevMainVideo) {
+                    prevMainVideo.classList.remove('main-video');
+                }
+            }
+            
+            // Set new main video
+            const newMainVideo = document.getElementById(videoItemId);
+            if (newMainVideo) {
+                newMainVideo.classList.add('main-video');
+                mainVideoId = videoItemId;
+                enterFullscreenMode();
+            }
+        }
+        
+        // Enter fullscreen mode
+        function enterFullscreenMode() {
+            videoContainer.classList.add('main-view');
+            
+            // If we're in an iframe, try to make it fullscreen
+            if (window.self !== window.top) {
+                try {
+                    const iframe = window.frameElement;
+                    if (iframe) {
+                        if (iframe.requestFullscreen) {
+                            iframe.requestFullscreen();
+                        } else if (iframe.webkitRequestFullscreen) {
+                            iframe.webkitRequestFullscreen();
+                        } else if (iframe.msRequestFullscreen) {
+                            iframe.msRequestFullscreen();
+                        }
+                    }
+                } catch (e) {
+                    console.log('Fullscreen error:', e);
+                }
+            }
+        }
+        
+        // Exit fullscreen mode
+        function exitFullscreenMode() {
+            videoContainer.classList.remove('main-view');
+            mainVideoId = null;
+            
+            // Remove main-video class from all elements
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('main-video');
+            });
+            
+            // Exit fullscreen if we're in an iframe
+            if (window.self !== window.top) {
+                try {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                } catch (e) {
+                    console.log('Exit fullscreen error:', e);
+                }
             }
         }
         
@@ -653,45 +730,22 @@
         // Start screen sharing
         async function startScreenShare() {
             try {
-                // For iOS/Safari, we need to use the experimental API
-                const constraints = {
+                if (!navigator.mediaDevices.getDisplayMedia) {
+                    throw new Error('Screen sharing not supported in this browser');
+                }
+                
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
-                        mediaSource: 'screen',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
                         frameRate: { ideal: 30 }
                     },
                     audio: false
-                };
+                });
                 
-                // Adjust constraints for different browsers
-                if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
-                    // iOS devices
-                    constraints.video = true;
-                } else if (navigator.mediaDevices.getDisplayMedia) {
-                    // Standard getDisplayMedia
-                    screenStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: {
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 },
-                            frameRate: { ideal: 30 }
-                        },
-                        audio: false
-                    });
-                } else if (navigator.mediaDevices.getUserMedia) {
-                    // Fallback for older browsers
-                    screenStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            mandatory: {
-                                chromeMediaSource: 'screen',
-                                maxWidth: 1920,
-                                maxHeight: 1080,
-                                maxFrameRate: 30
-                            }
-                        }
-                    });
-                } else {
-                    throw new Error('Screen sharing not supported');
+                // Check if we got the stream
+                if (!screenStream || !screenStream.getVideoTracks().length) {
+                    throw new Error('Failed to get screen share stream');
                 }
                 
                 // Show screen share preview
@@ -707,11 +761,18 @@
                 // Replace video track in all existing calls
                 const screenVideoTrack = screenStream.getVideoTracks()[0];
                 for (const call of Object.values(calls)) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track.kind === 'video') {
-                            sender.replaceTrack(screenVideoTrack);
+                    if (call.peerConnection) {
+                        const senders = call.peerConnection.getSenders();
+                        for (const sender of senders) {
+                            if (sender.track && sender.track.kind === 'video') {
+                                try {
+                                    await sender.replaceTrack(screenVideoTrack);
+                                } catch (e) {
+                                    console.error('Error replacing track:', e);
+                                }
+                            }
                         }
-                    });
+                    }
                 }
                 
                 // Handle when screen sharing is stopped by browser UI
@@ -721,7 +782,13 @@
                 
             } catch (error) {
                 console.error('Error starting screen share:', error);
-                showNotification('Error starting screen share: ' + error.message);
+                showNotification('Error starting screen share: ' + (error.message || 'Not supported'));
+                
+                // Stop stream if it was partially created
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => track.stop());
+                    screenStream = null;
+                }
             }
         }
         
@@ -733,8 +800,10 @@
             screenShareContainer.style.display = 'none';
             
             // Stop screen stream
-            screenStream.getTracks().forEach(track => track.stop());
-            screenStream = null;
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
             
             // Update UI
             screenShareBtn.innerHTML = '<i class="material-icons">screen_share</i>';
@@ -746,11 +815,18 @@
             if (localStream) {
                 const cameraVideoTrack = localStream.getVideoTracks()[0];
                 for (const call of Object.values(calls)) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track.kind === 'video') {
-                            sender.replaceTrack(cameraVideoTrack);
+                    if (call.peerConnection) {
+                        const senders = call.peerConnection.getSenders();
+                        for (const sender of senders) {
+                            if (sender.track && sender.track.kind === 'video') {
+                                try {
+                                    await sender.replaceTrack(cameraVideoTrack);
+                                } catch (e) {
+                                    console.error('Error restoring camera track:', e);
+                                }
+                            }
                         }
-                    });
+                    }
                 }
             }
         }
@@ -793,31 +869,16 @@
                 peer = null;
             }
             
-            // Notify server we're leaving
-            try {
-                await fetch('/api/get_peer_ids', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_name: currentRoom,
-                        current_user: currentUser,
-                        action: 'leave'
-                    })
-                });
-            } catch (error) {
-                console.error('Error notifying server about leaving:', error);
-            }
-            
             // Reset UI
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
             videoContainer.innerHTML = '';
+            exitFullscreenMode();
             
             currentRoom = null;
             currentUser = null;
             peerId = null;
+            mainVideoId = null;
         }
         
         // Show notification
