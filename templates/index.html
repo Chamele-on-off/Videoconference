@@ -31,41 +31,6 @@
             padding: 10px;
         }
 
-        /* Главное видео (на весь экран) */
-        .video-container.main-view {
-            grid-template-columns: 1fr;
-        }
-
-        .video-container.main-view .video-item:not(.main-video) {
-            position: absolute;
-            width: 200px;
-            height: 150px;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .video-container.main-view .video-item:not(.main-video):hover {
-            transform: scale(1.05);
-            border-color: rgba(0, 150, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
-        }
-
-        .video-container.main-view .video-item:not(.main-video):nth-child(2) {
-            right: 240px;
-        }
-
-        .video-container.main-view .video-item:not(.main-video):nth-child(3) {
-            right: 460px;
-        }
-
-        .video-container.main-view .video-item:not(.main-video):nth-child(4) {
-            right: 680px;
-        }
-
         /* Видео участников */
         .video-item {
             position: relative;
@@ -73,13 +38,6 @@
             border-radius: 12px;
             overflow: hidden;
             transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .video-item.main-video {
-            grid-column: 1 / -1;
-            grid-row: 1 / -1;
-            z-index: 5;
         }
 
         .video-item video {
@@ -271,25 +229,6 @@
                 height: 45px;
                 font-size: 18px;
             }
-
-            .video-container.main-view .video-item:not(.main-video) {
-                width: 120px;
-                height: 90px;
-                bottom: 10px;
-                right: 10px;
-            }
-
-            .video-container.main-view .video-item:not(.main-video):nth-child(2) {
-                right: 140px;
-            }
-
-            .video-container.main-view .video-item:not(.main-video):nth-child(3) {
-                right: 270px;
-            }
-
-            .video-container.main-view .video-item:not(.main-video):nth-child(4) {
-                right: 400px;
-            }
         }
 
         /* Стиль для демонстрации экрана */
@@ -411,7 +350,6 @@
         let peerId = null;
         let connections = {};
         let calls = {};
-        let mainVideoId = null;
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -470,11 +408,6 @@
                 // Get list of other participants and connect to them
                 await connectToOtherParticipants();
                 
-                // Автоматически разворачиваем на весь экран при начале конференции
-                setTimeout(() => {
-                    enterFullscreenMode();
-                }, 1000);
-                
             } catch (error) {
                 console.error('Error joining room:', error);
                 showNotification('Error joining room: ' + error.message);
@@ -515,11 +448,6 @@
             
             videoTrack = stream.getVideoTracks()[0];
             audioTrack = stream.getAudioTracks()[0];
-            
-            // Добавляем обработчик клика для выбора главного видео
-            videoItem.addEventListener('click', () => {
-                setMainVideo('localVideoItem');
-            });
         }
         
         // Initialize PeerJS connection
@@ -673,106 +601,13 @@
             videoItem.appendChild(video);
             videoItem.appendChild(participantInfo);
             videoContainer.appendChild(videoItem);
-            
-            // Добавляем обработчик клика для выбора главного видео
-            videoItem.addEventListener('click', () => {
-                setMainVideo(`videoItem-${peerId}`);
-            });
-            
-            // Если это первый участник, делаем его видео главным
-            if (!mainVideoId && peerId) {
-                setMainVideo(`videoItem-${peerId}`);
-            }
         }
         
         // Remove remote video
         function removeRemoteVideo(peerId) {
             const videoItem = document.getElementById(`videoItem-${peerId}`);
             if (videoItem) {
-                // Если удаляем главное видео, выбираем новое главное
-                if (videoItem.id === mainVideoId) {
-                    const remainingVideos = document.querySelectorAll('.video-item:not(.main-video)');
-                    if (remainingVideos.length > 0) {
-                        setMainVideo(remainingVideos[0].id);
-                    } else {
-                        exitFullscreenMode();
-                    }
-                }
                 videoItem.remove();
-            }
-        }
-        
-        // Set main video
-        function setMainVideo(videoItemId) {
-            // Если уже выбрано это видео, выходим из полноэкранного режима
-            if (mainVideoId === videoItemId) {
-                exitFullscreenMode();
-                return;
-            }
-            
-            // Убираем предыдущее главное видео
-            if (mainVideoId) {
-                const prevMainVideo = document.getElementById(mainVideoId);
-                if (prevMainVideo) {
-                    prevMainVideo.classList.remove('main-video');
-                }
-            }
-            
-            // Устанавливаем новое главное видео
-            const newMainVideo = document.getElementById(videoItemId);
-            if (newMainVideo) {
-                newMainVideo.classList.add('main-video');
-                mainVideoId = videoItemId;
-                enterFullscreenMode();
-            }
-        }
-        
-        // Enter fullscreen mode
-        function enterFullscreenMode() {
-            videoContainer.classList.add('main-view');
-            
-            // Если есть iframe родитель, попробуем развернуть его на весь экран
-            if (window.self !== window.top) {
-                try {
-                    const iframe = window.frameElement;
-                    if (iframe) {
-                        if (iframe.requestFullscreen) {
-                            iframe.requestFullscreen();
-                        } else if (iframe.webkitRequestFullscreen) {
-                            iframe.webkitRequestFullscreen();
-                        } else if (iframe.msRequestFullscreen) {
-                            iframe.msRequestFullscreen();
-                        }
-                    }
-                } catch (e) {
-                    console.log('Fullscreen error:', e);
-                }
-            }
-        }
-        
-        // Exit fullscreen mode
-        function exitFullscreenMode() {
-            videoContainer.classList.remove('main-view');
-            mainVideoId = null;
-            
-            // Убираем класс main-video у всех элементов
-            document.querySelectorAll('.video-item').forEach(item => {
-                item.classList.remove('main-video');
-            });
-            
-            // Выходим из полноэкранного режима, если мы в iframe
-            if (window.self !== window.top) {
-                try {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
-                    }
-                } catch (e) {
-                    console.log('Exit fullscreen error:', e);
-                }
             }
         }
         
@@ -979,12 +814,10 @@
             joinForm.style.display = 'block';
             controlPanel.style.display = 'none';
             videoContainer.innerHTML = '';
-            exitFullscreenMode();
             
             currentRoom = null;
             currentUser = null;
             peerId = null;
-            mainVideoId = null;
         }
         
         // Show notification
