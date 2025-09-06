@@ -409,6 +409,7 @@
         let connections = {};
         let calls = {};
         let mainVideoId = null;
+        let participantCheckInterval = null;
         
         // DOM elements
         const joinBtn = document.getElementById('joinBtn');
@@ -461,10 +462,16 @@
                 peerId = `peer-${Math.random().toString(36).substr(2, 9)}`;
                 peer = new Peer(peerId);
                 
-                peer.on('open', () => {
+                peer.on('open', async () => {
                     console.log('PeerJS connected with ID:', peerId);
                     joinForm.style.display = 'none';
                     controlPanel.style.display = 'flex';
+                    
+                    // Register on server
+                    await registerOnServer();
+                    
+                    // Connect to room participants
+                    await connectToRoom();
                     
                     // Automatically enter fullscreen mode
                     setTimeout(() => {
@@ -483,6 +490,10 @@
                     conn.on('open', () => {
                         console.log('Connection established with:', conn.peer);
                         connections[conn.peer] = conn;
+                    });
+                    
+                    conn.on('data', (data) => {
+                        console.log('Received data:', data);
                     });
                     
                     conn.on('close', () => {
@@ -511,6 +522,10 @@
                         }
                     });
                     
+                    call.on('error', (err) => {
+                        console.error('Call error:', err);
+                    });
+                    
                     calls[call.peer] = call;
                 });
                 
@@ -527,6 +542,154 @@
                 }
             }
         });
+        
+        // Register on server
+        async function registerOnServer() {
+            try {
+                const response = await fetch('/api/get_peer_id', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUser,
+                        room_name: currentRoom,
+                        peer_id: peerId
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log('Registered on server with peer ID:', peerId);
+                } else {
+                    console.error('Failed to register on server:', data.error);
+                }
+            } catch (error) {
+                console.error('Error registering on server:', error);
+            }
+        }
+        
+        // Connect to room participants
+        async function connectToRoom() {
+            try {
+                // Get list of other participants
+                const response = await fetch('/api/get_peer_ids', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        room_name: currentRoom,
+                        current_user: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.peers) {
+                    // Connect to each participant
+                    for (const [userId, remotePeerId] of Object.entries(data.peers)) {
+                        await connectToPeer(remotePeerId, userId);
+                    }
+                    
+                    // Periodically check for new participants
+                    participantCheckInterval = setInterval(checkForNewParticipants, 3000);
+                }
+            } catch (error) {
+                console.error('Error connecting to room:', error);
+            }
+        }
+        
+        // Connect to specific peer
+        async function connectToPeer(remotePeerId, userId) {
+            if (connections[remotePeerId]) return; // Already connected
+            
+            try {
+                // Create data connection
+                const conn = peer.connect(remotePeerId);
+                
+                conn.on('open', () => {
+                    console.log('Connected to:', remotePeerId);
+                    connections[remotePeerId] = conn;
+                    
+                    // Initiate video call
+                    initiateVideoCall(remotePeerId);
+                });
+                
+                conn.on('data', (data) => {
+                    console.log('Received data from', remotePeerId, ':', data);
+                });
+                
+                conn.on('close', () => {
+                    console.log('Connection closed with:', remotePeerId);
+                    removeRemoteVideo(remotePeerId);
+                    delete connections[remotePeerId];
+                });
+                
+                conn.on('error', (err) => {
+                    console.error('Connection error with', remotePeerId, ':', err);
+                });
+                
+            } catch (error) {
+                console.error('Error connecting to peer:', error);
+            }
+        }
+        
+        // Initiate video call
+        function initiateVideoCall(remotePeerId) {
+            if (calls[remotePeerId]) return; // Call already exists
+            
+            try {
+                const streamToSend = isScreenSharing && screenStream ? screenStream : localStream;
+                const call = peer.call(remotePeerId, streamToSend);
+                
+                call.on('stream', (remoteStream) => {
+                    addRemoteVideo(remotePeerId, remoteStream);
+                });
+                
+                call.on('close', () => {
+                    console.log('Call ended with:', remotePeerId);
+                    removeRemoteVideo(remotePeerId);
+                    delete calls[remotePeerId];
+                });
+                
+                call.on('error', (err) => {
+                    console.error('Call error with', remotePeerId, ':', err);
+                });
+                
+                calls[remotePeerId] = call;
+            } catch (error) {
+                console.error('Error initiating call:', error);
+            }
+        }
+        
+        // Check for new participants
+        async function checkForNewParticipants() {
+            try {
+                const response = await fetch('/api/get_peer_ids', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        room_name: currentRoom,
+                        current_user: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.peers) {
+                    for (const [userId, remotePeerId] of Object.entries(data.peers)) {
+                        if (!connections[remotePeerId]) {
+                            await connectToPeer(remotePeerId, userId);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking for new participants:', error);
+            }
+        }
         
         // Add local video
         function addLocalVideo(stream) {
@@ -840,6 +1003,29 @@
         
         // Leave the room
         async function leaveRoom() {
+            // Clear interval for checking participants
+            if (participantCheckInterval) {
+                clearInterval(participantCheckInterval);
+                participantCheckInterval = null;
+            }
+            
+            // Notify server about leaving
+            try {
+                await fetch('/api/get_peer_ids', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        room_name: currentRoom,
+                        current_user: currentUser,
+                        action: 'leave'
+                    })
+                });
+            } catch (error) {
+                console.error('Error notifying server about leaving:', error);
+            }
+            
             // Stop screen sharing if active
             if (isScreenSharing) {
                 await stopScreenShare();
